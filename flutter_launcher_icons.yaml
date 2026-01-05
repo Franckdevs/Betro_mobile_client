@@ -1,0 +1,10 @@
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
+  adaptive_icon: false  # Désactive les icônes adaptatives pour éviter l'erreur
+  web:
+    generate: false  # Désactive la génération pour le web pour l'instant
+  windows:
+    generate: false  # Désactive la génération pour Windows pour l'instant
