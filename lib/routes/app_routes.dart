@@ -8,6 +8,7 @@ import '../pages/dashboard/dashboard_page.dart';
 import '../pages/dashboard/reservation_page.dart';
 import '../pages/dashboard/compagnie_page.dart';
 import '../pages/dashboard/parametre_page.dart';
+import '../pages/auth/login_page.dart';
 
 class AppRoutes {
   static final routes = {
@@ -20,5 +21,6 @@ class AppRoutes {
     '/compagnie': (context) => const Compagnie(),
     '/parametre': (context) => const ParametrePage(),
     '/intro': (context) => const Intro(),
+    '/login': (context) => const LoginPage(),
   };
 }

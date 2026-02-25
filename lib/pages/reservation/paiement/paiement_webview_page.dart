@@ -121,6 +121,13 @@ class _PaiementWebViewPageState extends State<PaiementWebViewPage> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.black),
+            onPressed: () {
+              _controller.reload();
+            },
+            tooltip: 'Actualiser la page',
+          ),
+          IconButton(
             icon: const Icon(Icons.home, color: Colors.black),
             onPressed: _navigateToHome,
             tooltip: 'Retour à l\'accueil',

@@ -203,13 +203,19 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
               'id': voyage['id'],
               'heure_depart': voyage['heure_depart'],
               'date_depart': voyage['date_depart'],
+              'disponible_toujours': voyage['disponible_toujours'],
               'bus': voyage['bus'],
               'itineraire': voyage['itineraire'],
             };
 
             // Afficher le voyage traité
             print('=== VOYAGE TRAITÉ ===');
-            print(const JsonEncoder.withIndent('  ').convert(processedVoyage));
+            print(
+              'disponible_toujours dans processedVoyage: ${processedVoyage['disponible_toujours']}',
+            );
+            print(
+              'Clés dans processedVoyage: ${processedVoyage.keys.toList()}',
+            );
             print('=====================');
 
             // Extraire les informations de tarification et de villes depuis les arrêts
@@ -232,6 +238,13 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                 if (tarification['ville_arrivee'] is Map) {
                   processedVoyage['ville_arrivee'] = {
                     'nom_ville': tarification['ville_arrivee']['nom_ville'],
+                  };
+                }
+
+                // Extraire les informations de la classe
+                if (tarification['classe'] is Map) {
+                  processedVoyage['classe'] = {
+                    'nom': tarification['classe']['nom'],
                   };
                 }
               }
@@ -940,6 +953,19 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                       ? '${voyage['montant']} FCFA'
                                       : 'Prix non disponible';
 
+                                  // Vérifier si le voyage est toujours disponible
+                                  final disponibleToujoursValue =
+                                      voyage['disponible_toujours'];
+                                  final disponibleToujours =
+                                      disponibleToujoursValue?.toString() ==
+                                          '1' ||
+                                      disponibleToujoursValue == true;
+
+                                  // Debug: afficher la valeur de disponible_toujours
+                                  print(
+                                    'disponible_toujours: $disponibleToujoursValue -> $disponibleToujours',
+                                  );
+
                                   // Récupérer les informations du bus
                                   final bus = voyage['bus'] is Map
                                       ? voyage['bus']
@@ -958,60 +984,26 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           // En-tête avec la date et l'heure de départ + prix
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
-                                                'Date: ${dateDepart.split('-').reversed.join('/')}',
+                                                disponibleToujours == false
+                                                    ? 'Date: ${dateDepart.split('-').reversed.join('/')} • Départ: $heureDepart'
+                                                    : 'Départ: $heureDepart',
                                                 style: const TextStyle(
                                                   fontSize: 14,
-                                                  color: Colors.grey,
+                                                  color: Colors.black,
                                                 ),
                                               ),
-                                              const SizedBox(height: 4),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  Text(
-                                                    'Départ: $heureDepart',
-                                                    style: const TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 4,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.green[50],
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            20,
-                                                          ),
-                                                      border: Border.all(
-                                                        color:
-                                                            Colors.green[100]!,
-                                                      ),
-                                                    ),
-                                                    child: Text(
-                                                      montant,
-                                                      style: TextStyle(
-                                                        color:
-                                                            Colors.green[800],
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
+                                              Text(
+                                                montant,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black,
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -1051,6 +1043,25 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                                   fontWeight: FontWeight.w500,
                                                 ),
                                               ),
+                                              // Ajouter la classe si elle existe
+                                              if (voyage['classe'] != null) ...[
+                                                const SizedBox(width: 12),
+                                                const Icon(
+                                                  Icons
+                                                      .airline_seat_recline_normal,
+                                                  size: 16,
+                                                  color: Colors.purple,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '(${voyage['classe']['nom'] ?? 'Standard'})',
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.black87,
+                                                  ),
+                                                ),
+                                              ],
                                             ],
                                           ),
 
@@ -1084,10 +1095,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                                     const SizedBox(height: 4),
                                                     // Affichage des détails du bus
                                                     if (bus != null)
-                                                      Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
+                                                      Row(
                                                         children: [
                                                           if (bus['photo_bus'] !=
                                                                   null &&
@@ -1103,12 +1111,12 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                                                 tag:
                                                                     'bus-image-${bus['photo_bus']}',
                                                                 child: Container(
-                                                                  width: 100,
-                                                                  height: 60,
+                                                                  width: 80,
+                                                                  height: 50,
                                                                   margin:
                                                                       const EdgeInsets.only(
-                                                                        bottom:
-                                                                            8,
+                                                                        right:
+                                                                            12,
                                                                       ),
                                                                   decoration: BoxDecoration(
                                                                     borderRadius:
@@ -1126,56 +1134,41 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                                                 ),
                                                               ),
                                                             ),
-                                                          Text(
-                                                            'Bus: ${bus['nom_bus'] ?? 'N/A'}',
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 13,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w500,
-                                                                  color: Colors
-                                                                      .black87,
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  '${bus['nom_bus'] ?? 'N/A'} • ${bus['marque_bus'] ?? 'N/A'} • ${bus['immatriculation_bus'] ?? 'N/A'}',
+                                                                  style: const TextStyle(
+                                                                    fontSize:
+                                                                        13,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                    color: Colors
+                                                                        .black87,
+                                                                  ),
                                                                 ),
-                                                          ),
-                                                          const SizedBox(
-                                                            height: 4,
-                                                          ),
-                                                          Text(
-                                                            'Marque: ${bus['marque_bus'] ?? 'N/A'}',
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: Colors
-                                                                      .grey,
+                                                                const SizedBox(
+                                                                  height: 2,
                                                                 ),
-                                                          ),
-                                                          const SizedBox(
-                                                            height: 2,
-                                                          ),
-                                                          Text(
-                                                            'Immatriculation: ${bus['immatriculation_bus'] ?? 'N/A'}',
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: Colors
-                                                                      .grey,
+                                                                Text(
+                                                                  '${bus['nombre_places']?.toString() ?? '0'} places',
+                                                                  style: const TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    color: Colors
+                                                                        .grey,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                  ),
                                                                 ),
-                                                          ),
-                                                          const SizedBox(
-                                                            height: 4,
-                                                          ),
-                                                          Text(
-                                                            'Nombre de places: ${bus['nombre_places']?.toString() ?? '0'}',
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: Colors
-                                                                      .grey,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w500,
-                                                                ),
+                                                              ],
+                                                            ),
                                                           ),
                                                         ],
                                                       ),
@@ -1281,6 +1274,10 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                                         immatriculationBus:
                                                             bus['immatriculation_bus'] ??
                                                             'Inconnue',
+                                                        classe:
+                                                            voyage['classe']?['nom'],
+                                                        disponibleToujours:
+                                                            disponibleToujours,
                                                       ),
                                                     ),
                                                   );

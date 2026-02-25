@@ -18,6 +18,8 @@ class SelectionSiegePage extends StatefulWidget {
   final String heureDepart;
   final String marqueBus;
   final String immatriculationBus;
+  final String? classe;
+  final bool disponibleToujours;
 
   const SelectionSiegePage({
     super.key,
@@ -32,6 +34,8 @@ class SelectionSiegePage extends StatefulWidget {
     required this.heureDepart,
     required this.marqueBus,
     required this.immatriculationBus,
+    this.classe,
+    this.disponibleToujours = false,
   });
 
   @override
@@ -806,7 +810,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
   Widget _buildChauffeurSeat() {
     return Container(
       width: 80,
-      height: 60,
+      height: 80,
       margin: const EdgeInsets.only(right: 8),
       decoration: BoxDecoration(
         color: Colors.grey[200],
@@ -934,7 +938,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
         .toList();
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(7.0),
       child: Column(
         children: [
           // Légende
@@ -972,7 +976,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           // Représentation du bus
           Card(
@@ -997,7 +1001,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                   Container(
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.blue[900],
+                      color: Colors.yellow,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(12),
                         topRight: Radius.circular(12),
@@ -1007,7 +1011,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                       child: Text(
                         '${widget.marqueBus} - ${widget.immatriculationBus}',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Colors.black,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
@@ -1037,22 +1041,22 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                               _buildChauffeurSeat(),
 
                               // Espace pour le tableau de bord
-                              Container(
-                                width: 100,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey[400]!),
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.directions_bus,
-                                    size: 30,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
+                              // Container(
+                              //   width: 100,
+                              //   height: 60,
+                              //   decoration: BoxDecoration(
+                              //     color: Colors.grey[200],
+                              //     borderRadius: BorderRadius.circular(8),
+                              //     border: Border.all(color: Colors.grey[400]!),
+                              //   ),
+                              //   child: const Center(
+                              //     child: Icon(
+                              //       Icons.directions_bus,
+                              //       size: 30,
+                              //       color: Colors.grey,
+                              //     ),
+                              //   ),
+                              // ),
 
                               // Places proches du chauffeur
                               Expanded(
@@ -1147,21 +1151,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
               ),
             ),
           ),
-          // Configuration des places
-          const Padding(
-            padding: EdgeInsets.only(top: 10, bottom: 5),
-            child: Text(
-              'Configuration des places',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-          ),
-          // Grille des places avec défilement
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _buildSeatGrid(placesAConsiderer),
-            ),
-          ),
+          // La configuration des places est maintenant affichée dans la représentation du bus
 
           // Bouton de confirmation (masqué)
           // if (_selectedSeat != null) ...[
@@ -1271,13 +1261,21 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDetailRow(
-                    Icons.calendar_today,
-                    widget.dateDepart,
-                    isDate: true,
-                  ),
-                  const SizedBox(height: 4),
+                  if (!widget.disponibleToujours) ...[
+                    _buildDetailRow(
+                      Icons.calendar_today,
+                      widget.dateDepart,
+                      isDate: true,
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   _buildDetailRow(Icons.access_time, widget.heureDepart),
+                  const SizedBox(height: 4),
+                  if (widget.classe != null)
+                    _buildDetailRow(
+                      Icons.airline_seat_recline_normal,
+                      'Classe: ${widget.classe}',
+                    ),
                 ],
               ),
               Column(

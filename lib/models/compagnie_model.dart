@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'gare_model.dart';
 
 class Compagnie {
@@ -30,20 +32,91 @@ class Compagnie {
   }) : gares = gares ?? [];
 
   factory Compagnie.fromJson(Map<String, dynamic> json) {
-    final garesJson = json['liste_gares'] as List<dynamic>?;
-    return Compagnie(
-      id: json['id'],
-      nomComplet: json['nom_complet_compagnies'],
-      email: json['email_compagnies'],
-      telephone: json['telephone_compagnies'],
-      adresse: json['adresse_compagnies'],
-      logoUrl: json['logo_url'],
-      description: json['description_compagnies'],
-      latitude: json['latitude'],
-      longitude: json['longitude'],
-      status: json['status'],
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-      gares: garesJson?.map((gare) => Gare.fromJson(gare)).toList() ?? [],
-    );
+    try {
+      if (kDebugMode) {
+        print('⚙️ Données JSON reçues pour Compagnie:');
+        print(jsonEncode(json));
+      }
+
+      final garesJson = json['liste_gares'] as List<dynamic>?;
+
+      // Vérification des champs requis
+      final requiredFields = [
+        'id',
+        'nom_complet_compagnies',
+        'email_compagnies',
+        'telephone_compagnies',
+        'adresse_compagnies',
+        'description_compagnies',
+        'latitude',
+        'longitude',
+        'status',
+      ];
+
+      for (final field in requiredFields) {
+        if (json[field] == null) {
+          print('⚠️ Champ manquant ou null dans la réponse API: $field');
+        }
+      }
+
+      // Récupération des valeurs avec des valeurs par défaut si nécessaire
+      final compagnie = Compagnie(
+        id: json['id'] as int? ?? 0,
+        nomComplet:
+            (json['nom_complet_compagnies'] as String?) ?? 'Nom non fourni',
+        email: (json['email_compagnies'] as String?) ?? 'email@non-fourni.com',
+        telephone: (json['telephone_compagnies'] as String?) ?? 'Non fourni',
+        adresse:
+            (json['adresse_compagnies'] as String?) ?? 'Adresse non fournie',
+        logoUrl: json['logo_url'] as String? ?? json['logo_path'] as String?,
+        description:
+            (json['description_compagnies'] as String?) ?? 'Aucune description',
+        latitude: (json['latitude']?.toString() ?? '0.0'),
+        longitude: (json['longitude']?.toString() ?? '0.0'),
+        status: (json['status']?.toString() ?? '1'),
+        createdAt:
+            json['created_at'] != null &&
+                json['created_at'].toString().isNotEmpty
+            ? DateTime.tryParse(json['created_at'].toString())
+            : null,
+        gares:
+            garesJson?.map<Gare>((gare) => Gare.fromJson(gare)).toList() ?? [],
+      );
+
+      if (kDebugMode) {
+        print('✅ Compagnie créée avec succès:');
+        print('   - ID: ${compagnie.id}');
+        print('   - Nom: ${compagnie.nomComplet}');
+        print('   - Email: ${compagnie.email}');
+        print('   - Téléphone: ${compagnie.telephone}');
+        print('   - Nombre de gares: ${compagnie.gares.length}');
+      }
+
+      return compagnie;
+    } catch (e, stackTrace) {
+      print('❌ Erreur lors de la création d\'une Compagnie depuis le JSON:');
+      print('   - Erreur: $e');
+      print('   - StackTrace: $stackTrace');
+      print('   - Données problématiques: ${jsonEncode(json)}');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nom_complet_compagnies': nomComplet,
+      'email_compagnies': email,
+      'telephone_compagnies': telephone,
+      'adresse_compagnies': adresse,
+      'logo_url': logoUrl,
+      'description_compagnies': description,
+      'latitude': latitude,
+      'longitude': longitude,
+      'status': status,
+      'created_at': createdAt?.toIso8601String(),
+      // Ne pas inclure les gares dans le toJson pour éviter les références circulaires
+      // 'liste_gares': gares.map((gare) => gare.toJson()).toList(),
+    };
   }
 }

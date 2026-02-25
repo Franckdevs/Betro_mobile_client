@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:betro/services/paiement_service.dart';
+import 'package:betro/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class DetailPaiementPage extends StatefulWidget {
   final int paiementId;
@@ -16,6 +18,7 @@ class DetailPaiementPage extends StatefulWidget {
 
 class _DetailPaiementPageState extends State<DetailPaiementPage> {
   final PaiementService _paiementService = PaiementService();
+  final ApiService _apiService = ApiService();
   late Future<Map<String, dynamic>> _paiementDetails;
   bool _isLoading = true;
   String _errorMessage = '';
@@ -36,11 +39,44 @@ class _DetailPaiementPageState extends State<DetailPaiementPage> {
         _isLoading = false;
       });
     } catch (e) {
+      String cleanError = _cleanErrorMessage(e.toString());
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Erreur: ${e.toString()}';
+        _errorMessage = 'Erreur: $cleanError';
       });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de chargement: $cleanError'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
+  }
+
+  // Nettoie les messages d'erreur pour cacher les informations sensibles
+  String _cleanErrorMessage(String errorMessage) {
+    String cleaned = errorMessage.replaceAll(
+      RegExp(r'https?://[^\s]+'),
+      '[URL]',
+    );
+    cleaned = cleaned.replaceAll(RegExp(r'\b[a-zA-Z0-9]{20,}\b'), '[TOKEN]');
+    cleaned = cleaned.replaceAll(
+      RegExp(r'ClientException.*'),
+      'Erreur de connexion réseau',
+    );
+    cleaned = cleaned.replaceAll(
+      RegExp(r'Failed host lookup.*'),
+      'Serveur inaccessible',
+    );
+    cleaned = cleaned.replaceAll(
+      RegExp(r'No address associated.*'),
+      'Serveur inaccessible',
+    );
+    return cleaned;
   }
 
   // Formatte la date pour l'affichage
@@ -211,7 +247,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage> {
                           ),
 
                         _buildInfoRow(
-                          'Code',
+                          'Code paiement',
                           paiement['code_paiement'] ?? 'N/A',
                         ),
                         _buildInfoRow(
@@ -239,6 +275,48 @@ class _DetailPaiementPageState extends State<DetailPaiementPage> {
                           _getStatusText(paiement['status']),
                           isStatus: true,
                         ),
+
+                        // Lien pour voir le reçu en ligne
+                        if (paiement['code_paiement'] != null &&
+                            paiement['code_paiement'].toString().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12.0),
+                            child: Container(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final codePaiement = paiement['code_paiement']
+                                      .toString();
+                                  // Utiliser le baseUrl sans /api pour la page web
+                                  final baseUrl = _apiService.baseUrl
+                                      .replaceAll('/api', '');
+                                  final url =
+                                      '$baseUrl/status-paiement/$codePaiement';
+
+                                  // Ouvrir la page dans une WebView
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          WebViewPage(url: url),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.receipt_long, size: 18),
+                                label: const Text('Voir reçu en ligne'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                       ]),
 
                       const SizedBox(height: 16),
@@ -316,35 +394,34 @@ class _DetailPaiementPageState extends State<DetailPaiementPage> {
                       ]),
 
                       const SizedBox(height: 16),
-
-                      _buildInfoCard('Informations de la Gare', [
-                        _buildInfoRow('Nom', gare['nom_gare'] ?? 'N/A'),
-                        if (gare['telephone_gare'] != null &&
-                            gare['telephone_gare'].toString().isNotEmpty)
-                          _buildInfoRow('Téléphone', gare['telephone_gare']),
-                        if (gare['adresse_gare'] != null &&
-                            gare['adresse_gare'].toString().isNotEmpty)
-                          _buildInfoRow('Adresse', gare['adresse_gare']),
-                        if (gare['email'] != null &&
-                            gare['email'].toString().isNotEmpty)
-                          _buildInfoRow('Email', gare['email']),
-                        if (gare['heure_ouverture'] != null &&
-                            gare['heure_ouverture'].toString().isNotEmpty)
-                          _buildInfoRow(
-                            'Heure d\'ouverture',
-                            gare['heure_ouverture'],
-                          ),
-                        if (gare['heure_fermeture'] != null &&
-                            gare['heure_fermeture'].toString().isNotEmpty)
-                          _buildInfoRow(
-                            'Heure de fermeture',
-                            gare['heure_fermeture'],
-                          ),
-                        if (gare['parking_disponible'] == 1)
-                          _buildInfoRow('Parking', 'Disponible'),
-                        if (gare['wifi_disponible'] == 1)
-                          _buildInfoRow('WiFi', 'Disponible'),
-                      ]),
+                      // _buildInfoCard('Informations de la Gare', [
+                      //   _buildInfoRow('Nom', gare['nom_gare'] ?? 'N/A'),
+                      //   if (gare['telephone_gare'] != null &&
+                      //       gare['telephone_gare'].toString().isNotEmpty)
+                      //     _buildInfoRow('Téléphone', gare['telephone_gare']),
+                      //   if (gare['adresse_gare'] != null &&
+                      //       gare['adresse_gare'].toString().isNotEmpty)
+                      //     _buildInfoRow('Adresse', gare['adresse_gare']),
+                      //   if (gare['email'] != null &&
+                      //       gare['email'].toString().isNotEmpty)
+                      //     _buildInfoRow('Email', gare['email']),
+                      //   if (gare['heure_ouverture'] != null &&
+                      //       gare['heure_ouverture'].toString().isNotEmpty)
+                      //     _buildInfoRow(
+                      //       'Heure d\'ouverture',
+                      //       gare['heure_ouverture'],
+                      //     ),
+                      //   if (gare['heure_fermeture'] != null &&
+                      //       gare['heure_fermeture'].toString().isNotEmpty)
+                      //     _buildInfoRow(
+                      //       'Heure de fermeture',
+                      //       gare['heure_fermeture'],
+                      //     ),
+                      //   if (gare['parking_disponible'] == 1)
+                      //     _buildInfoRow('Parking', 'Disponible'),
+                      //   if (gare['wifi_disponible'] == 1)
+                      //     _buildInfoRow('WiFi', 'Disponible'),
+                      // ]),
                     ],
                   ),
                 );
@@ -471,6 +548,85 @@ class _DetailPaiementPageState extends State<DetailPaiementPage> {
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),
+      ),
+    );
+  }
+}
+
+// Classe pour afficher la page web dans une WebView
+class WebViewPage extends StatefulWidget {
+  final String url;
+
+  const WebViewPage({Key? key, required this.url}) : super(key: key);
+
+  @override
+  _WebViewPageState createState() => _WebViewPageState();
+}
+
+class _WebViewPageState extends State<WebViewPage> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            // Update loading bar
+          },
+          onPageStarted: (String url) {
+            setState(() {
+              _isLoading = true;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() {
+              _isLoading = false;
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            print('Erreur WebView: ${error.description}');
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reçu de paiement'),
+        backgroundColor: Colors.amber,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.black),
+            onPressed: () {
+              _controller.reload();
+            },
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
+                strokeWidth: 3,
+              ),
+            ),
+        ],
       ),
     );
   }

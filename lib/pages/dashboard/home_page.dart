@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/reservation_model.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../core/utils/error_helper.dart';
 import '../reservation/list_compagnie_page.dart';
 import '../auth/login_page.dart';
 import 'reservation_list.dart';
@@ -27,6 +28,8 @@ class _HomePageState extends State<HomePage> {
     start: DateTime.now().subtract(const Duration(days: 30)),
     end: DateTime.now(),
   );
+  String? _accueilImageUrl;
+  bool _isImageLoading = true;
 
   // Options de filtre prédéfinies
   final List<Map<String, dynamic>> _filterOptions = [
@@ -58,19 +61,24 @@ class _HomePageState extends State<HomePage> {
       final userCheck = await _apiService.verifierUtilisateurExiste(token);
 
       if (!userCheck['success']) {
-        // Déconnecter l'utilisateur et afficher un message
-        await _storageService.clearToken();
+        // Ne supprimer le token qu'en cas d'expiration de session (401) ou d'authentification invalide
+        final message = userCheck['message'] ?? 'Session expirée';
+        final shouldClearToken =
+            ErrorHelper.isAuthError(message) || userCheck['statusCode'] == 401;
+
+        if (shouldClearToken) {
+          await _storageService.clearToken();
+        }
+
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(userCheck['message'] ?? 'Session expirée'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ErrorHelper.showErrorSnackBar(context, message);
           _navigateToLogin();
         }
         return;
       }
+
+      // Charger l'image d'accueil en parallèle pour optimiser le temps
+      Future.microtask(() => _loadAccueilImage());
 
       // Si l'utilisateur est valide, charger les réservations
       await _loadReservations();
@@ -91,6 +99,49 @@ class _HomePageState extends State<HomePage> {
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
+  }
+
+  // Charger l'image d'accueil depuis l'API
+  Future<void> _loadAccueilImage() async {
+    try {
+      final imageUrl = await _apiService.getAccueilImage();
+      if (mounted) {
+        setState(() {
+          _accueilImageUrl = imageUrl;
+          _isImageLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erreur lors du chargement de l\'image d\'accueil: $e');
+      if (mounted) {
+        setState(() {
+          _isImageLoading = false;
+        });
+      }
+    }
+  }
+
+  // Widget Skeleton pour le chargement de l'image
+  Widget _buildImageSkeleton() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey[200],
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 8),
+            Text(
+              'Chargement de l\'image...',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // Appliquer un filtre prédéfini
@@ -167,6 +218,7 @@ class _HomePageState extends State<HomePage> {
           _reservations = [];
           _filteredReservations = [];
         });
+        _navigateToLogin();
         return;
       }
 
@@ -180,13 +232,40 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       debugPrint('Erreur lors du chargement des réservations: $e');
-      setState(() {
-        _isLoading = false;
-        _errorMessage =
-            'Impossible de charger les réservations. Veuillez réessayer plus tard.';
-        _reservations = [];
-        _filteredReservations = [];
-      });
+
+      // Vérifier si l'erreur est une erreur d'authentification
+      final isAuthError = ErrorHelper.isAuthError(e.toString());
+
+      if (isAuthError) {
+        // Seulement en cas d'erreur d'authentification, supprimer le token
+        await _storageService.clearToken();
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+          _reservations = [];
+          _filteredReservations = [];
+        });
+        if (mounted) {
+          ErrorHelper.showErrorSnackBar(
+            context,
+            'Erreur de chargement des réservations',
+          );
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              'Impossible de charger les réservations. Veuillez réessayer plus tard.';
+          _reservations = [];
+          _filteredReservations = [];
+        });
+        if (mounted) {
+          ErrorHelper.showErrorSnackBar(
+            context,
+            'Erreur de chargement des réservations',
+          );
+        }
+      }
     }
   }
 
@@ -214,29 +293,51 @@ class _HomePageState extends State<HomePage> {
 
                   // Image de fond avec effet de recherche
                   Container(
-                    height: 150,
+                    height: 200,
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 24),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      image: const DecorationImage(
-                        image: AssetImage('assets/images/compagnie.jpg'),
-                        fit: BoxFit.cover,
-                      ),
+                      color: Colors.grey[200],
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.3),
-                            Colors.black.withOpacity(0.1),
-                          ],
-                        ),
-                      ),
-                    ),
+                    child: _isImageLoading
+                        ? _buildImageSkeleton()
+                        : Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  image: DecorationImage(
+                                    image: _accueilImageUrl != null
+                                        ? NetworkImage(_accueilImageUrl!)
+                                        : const AssetImage(
+                                                'assets/images/compagnie.jpg',
+                                              )
+                                              as ImageProvider,
+                                    fit: BoxFit.cover,
+                                    onError: (error, stackTrace) {
+                                      debugPrint(
+                                        'Erreur de chargement de l\'image: $error',
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black.withOpacity(0.3),
+                                      Colors.black.withOpacity(0.1),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
 
                   // Bouton de réservation

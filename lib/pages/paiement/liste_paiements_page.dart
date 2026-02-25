@@ -162,76 +162,81 @@ class _ListePaiementsPageState extends State<ListePaiementsPage> {
 
                     // Liste des paiements
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: paiements.length,
-                        itemBuilder: (context, index) {
-                          final paiement = paiements[index]['paiement'];
-                          final tarification =
-                              paiements[index]['tarification'] ?? {};
-                          final villeDepart =
-                              tarification['ville_depart']?['nom_ville'] ??
-                              'N/A';
-                          final villeArrivee =
-                              tarification['ville_arrivee']?['nom_ville'] ??
-                              'N/A';
+                      child: RefreshIndicator(
+                        onRefresh: _loadPaiements,
+                        child: ListView.builder(
+                          itemCount: paiements.length,
+                          itemBuilder: (context, index) {
+                            final paiement = paiements[index]['paiement'];
+                            final tarification =
+                                paiements[index]['tarification'] ?? {};
+                            final villeDepart =
+                                tarification['ville_depart']?['nom_ville'] ??
+                                'N/A';
+                            final villeArrivee =
+                                tarification['ville_arrivee']?['nom_ville'] ??
+                                'N/A';
 
-                          return Card(
-                            color: Colors.white,
-                            elevation: 2,
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(color: Colors.grey[200]!),
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
+                            return Card(
+                              color: Colors.white,
+                              elevation: 2,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(color: Colors.grey[200]!),
                               ),
-                              child: ListTile(
-                                tileColor: Colors.white,
-                                title: Text(
-                                  'Trajet: $villeDepart - $villeArrivee',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ListTile(
+                                  tileColor: Colors.white,
+                                  title: Text(
+                                    'Trajet: $villeDepart - $villeArrivee',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Montant: ${paiement['montant']} FCFA',
-                                    ),
-                                    Text(
-                                      'Méthode: ${paiement['moyenPaiement'] ?? 'N/A'}',
-                                    ),
-                                    Text(
-                                      'Date: ${_formatDate(paiement['datePaiement'])}',
-                                    ),
-                                  ],
-                                ),
-                                trailing: _getStatusBadge(
-                                  paiement['status'] == '1'
-                                      ? 'Réussi'
-                                      : 'En attente',
-                                ),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => DetailPaiementPage(
-                                        paiementId: paiement['id'],
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Montant: ${paiement['montant']} FCFA',
                                       ),
-                                    ),
-                                  );
-                                },
+                                      Text(
+                                        'Méthode: ${paiement['moyenPaiement'] ?? 'N/A'}',
+                                      ),
+                                      Text(
+                                        'Date: ${_formatDate(paiement['datePaiement'])}',
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: _getStatusBadge(
+                                    paiement['status'] == '1'
+                                        ? 'Réussi'
+                                        : 'échoué',
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            DetailPaiementPage(
+                                              paiementId: paiement['id'],
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ],
@@ -249,9 +254,9 @@ class _ListePaiementsPageState extends State<ListePaiementsPage> {
       case '1':
         color = Colors.green;
         break;
-      case 'en attente':
+      case 'Echoué':
       case 'pending':
-        color = Colors.orange;
+        color = Colors.red;
         break;
       case 'échoué':
       case 'failed':

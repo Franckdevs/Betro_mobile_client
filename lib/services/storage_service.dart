@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
@@ -24,12 +25,10 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(_tokenKey);
-      print(
-        '🔑 Token récupéré: ${token != null ? '****' + (token.length > 5 ? token.substring(0, 5) + '...' : '***') : 'null'}',
-      );
+      debugPrint('🔑 Token récupéré: ${token != null ? 'existant' : 'null'}');
       return token;
     } catch (e) {
-      print('❌ Erreur lors de la récupération du token: $e');
+      debugPrint('❌ Erreur lors de la récupération du token: $e');
       return null;
     }
   }

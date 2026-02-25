@@ -1,17 +1,17 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/compagnie_model.dart';
 import '../models/itineraire_model.dart';
 import '../models/reservation_model.dart';
+import '../core/utils/error_helper.dart';
 
 class ApiService {
   // Vérifie si l'utilisateur existe avec le token fourni
   Future<Map<String, dynamic>> verifierUtilisateurExiste(String token) async {
     final url = Uri.parse('$baseUrl/verifier_utilisateur_existe/$token');
     try {
-      print('Vérification du token utilisateur...');
-      print('URL: $url');
-      print('Token: ${token.substring(0, 10)}...');
+      debugPrint('Vérification du token utilisateur...');
 
       final response = await http.get(
         url,
@@ -21,9 +21,7 @@ class ApiService {
         },
       );
 
-      print(
-        'Réponse de vérification: ${response.statusCode} - ${response.body}',
-      );
+      debugPrint('Réponse de vérification: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         try {
@@ -36,7 +34,7 @@ class ApiService {
           // Sinon, on l'encapsule dans le format attendu
           return {'success': true, 'user': responseData};
         } catch (e) {
-          print('Erreur lors du décodage de la réponse: $e');
+          debugPrint('Erreur lors du décodage de la réponse: $e');
           return {'success': false, 'message': 'Format de réponse invalide'};
         }
       } else if (response.statusCode == 401) {
@@ -52,17 +50,19 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Erreur lors de la vérification de l\'utilisateur: $e');
+      debugPrint('Erreur lors de la vérification de l\'utilisateur: $e');
+      // Nettoyer le message d'erreur pour cacher les URLs et données sensibles
+      String cleanErrorMessage = ErrorHelper.cleanErrorMessage(e.toString());
       return {
         'success': false,
-        'message': 'Erreur de connexion: ${e.toString()}',
+        'message': 'Erreur de connexion: $cleanErrorMessage',
       };
     }
   }
 
-  // final String baseUrl = "http://192.168.40.34:8000/api";
-  final String baseUrl = "http://192.168.95.83:8000/api";
-
+  //final String baseUrl = "http://192.168.40.34:8000/api";
+  final String baseUrl= "http://172.20.10.7:8000/api";
+  //
   Future<Map<String, dynamic>> get(String endpoint, {String? token}) async {
     final url = Uri.parse("$baseUrl/$endpoint");
     try {
@@ -71,19 +71,17 @@ class ApiService {
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
-      print('Envoi de la requête GET à: $url');
-      print('En-têtes: $headers');
+      debugPrint('Requête GET vers: $endpoint');
 
       final response = await http.get(url, headers: headers);
 
-      print('Réponse reçue - Statut: ${response.statusCode}');
-      print('Corps de la réponse: ${response.body}');
+      debugPrint('Réponse - Statut: ${response.statusCode}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
         final errorResponse = jsonDecode(response.body) as Map<String, dynamic>;
-        print('Erreur de l\'API: $errorResponse');
+        debugPrint('Erreur de l\'API: $errorResponse');
         return {
           'success': false,
           'message': errorResponse['message'] ?? 'Erreur inconnue du serveur',
@@ -91,10 +89,11 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Erreur lors de la requête GET: $e');
+      debugPrint('Erreur lors de la requête GET: $e');
+      String cleanErrorMessage = ErrorHelper.cleanErrorMessage(e.toString());
       return {
         'success': false,
-        'message': 'Erreur de connexion: ${e.toString()}',
+        'message': 'Erreur de connexion: $cleanErrorMessage',
       };
     }
   }
@@ -112,9 +111,7 @@ class ApiService {
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
-      print('Envoi de la requête POST à: $url');
-      print('En-têtes: $headers');
-      print('Données: $data');
+      debugPrint('Requête POST vers: $endpoint');
 
       final response = await http.post(
         url,
@@ -122,14 +119,13 @@ class ApiService {
         body: jsonEncode(data),
       );
 
-      print('Réponse reçue - Statut: ${response.statusCode}');
-      print('Corps de la réponse: ${response.body}');
+      debugPrint('Réponse - Statut: ${response.statusCode}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
         final errorResponse = jsonDecode(response.body) as Map<String, dynamic>;
-        print('Erreur de l\'API: $errorResponse');
+        debugPrint('Erreur de l\'API: $errorResponse');
         return {
           'success': false,
           'message': errorResponse['message'] ?? 'Erreur inconnue du serveur',
@@ -137,7 +133,12 @@ class ApiService {
         };
       }
     } catch (e) {
-      return {"status": false, "message": "Erreur de connexion : $e"};
+      debugPrint('Erreur lors de la requête POST: $e');
+      String cleanErrorMessage = ErrorHelper.cleanErrorMessage(e.toString());
+      return {
+        "status": false,
+        "message": "Erreur de connexion : $cleanErrorMessage",
+      };
     }
   }
 
@@ -263,16 +264,38 @@ class ApiService {
 
   Future<List<Compagnie>> getCompagnies() async {
     final url = Uri.parse("$baseUrl/listeCompagnie");
+    print('🔄 Tentative de récupération des compagnies depuis: $url');
     try {
       final response = await http.get(url);
+      print('📡 Réponse reçue - Statut: ${response.statusCode}');
+      print('📦 Corps de la réponse: ${response.body}');
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final List<dynamic> compagniesJson = data['listecompagnie'];
-        return compagniesJson.map((json) => Compagnie.fromJson(json)).toList();
+        try {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          if (data.containsKey('listecompagnie')) {
+            final List<dynamic> compagniesJson = data['listecompagnie'];
+            print('✅ ${compagniesJson.length} compagnies trouvées');
+            return compagniesJson
+                .map((json) => Compagnie.fromJson(json))
+                .toList();
+          } else {
+            print('❌ Clé "listecompagnie" non trouvée dans la réponse');
+            print('🔍 Clés disponibles: ${data.keys.toList()}');
+            return [];
+          }
+        } catch (e) {
+          print('❌ Erreur lors du parsing de la réponse: $e');
+          rethrow;
+        }
       } else {
-        throw Exception('Échec du chargement des compagnies');
+        print('❌ Erreur serveur: ${response.statusCode} - ${response.body}');
+        throw Exception(
+          'Échec du chargement des compagnies (${response.statusCode})',
+        );
       }
     } catch (e) {
+      print('❌ Erreur lors de la requête: $e');
       throw Exception('Erreur de connexion : $e');
     }
   }
@@ -301,7 +324,6 @@ class ApiService {
     }
   }
 
-  // Récupérer la liste des réservations d'un utilisateur
   Future<List<Reservation>> getReservations(String token) async {
     final url = Uri.parse('$baseUrl/liste_reservation/$token');
     try {
@@ -345,5 +367,49 @@ class ApiService {
     } catch (e) {
       throw Exception('Erreur de connexion : $e');
     }
+  }
+
+  // Récupérer l'image d'accueil depuis l'API avec cache
+  String? _cachedAccueilImageUrl;
+  DateTime? _lastImageFetch;
+  final _imageCacheDuration = const Duration(minutes: 30);
+
+  Future<String?> getAccueilImage() async {
+    final now = DateTime.now();
+
+    // Vérifier si le cache est valide
+    if (_cachedAccueilImageUrl != null &&
+        _lastImageFetch != null &&
+        now.difference(_lastImageFetch!) < _imageCacheDuration) {
+      debugPrint('Utilisation de l\'image en cache');
+      return _cachedAccueilImageUrl;
+    }
+
+    final url = Uri.parse('$baseUrl/config_web_mobile/image_acceuil_mobile');
+    try {
+      // Timeout très court pour une réponse rapide
+      final response = await http
+          .get(url, headers: {'Connection': 'keep-alive'})
+          .timeout(const Duration(milliseconds: 2000));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final imageUrl = data['image_name'] as String?;
+
+        // Mettre en cache le résultat
+        if (imageUrl != null) {
+          _cachedAccueilImageUrl = imageUrl;
+          _lastImageFetch = now;
+          debugPrint('Image mise en cache: $imageUrl');
+        }
+
+        return imageUrl;
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de la récupération de l\'image d\'accueil: $e');
+      // En cas d'erreur, retourner l'image en cache si disponible
+      return _cachedAccueilImageUrl;
+    }
+    return null;
   }
 }

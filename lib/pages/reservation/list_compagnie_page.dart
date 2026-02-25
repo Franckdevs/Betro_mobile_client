@@ -132,24 +132,9 @@ class _ListCompagniePageState extends State<ListCompagniePage> {
                 decoration: InputDecoration(
                   hintText: 'Rechercher une compagnie...',
                   hintStyle: TextStyle(color: Colors.grey[600]),
-                  suffixIcon: Container(
-                    margin: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.green[700],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Iconsax.search_normal_1,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        _filterCompagnies(_searchController.text);
-                      },
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
+                  suffixIcon: const SizedBox(
+                    width: 48,
+                  ), // Espace pour garder la forme
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,

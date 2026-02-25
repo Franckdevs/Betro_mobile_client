@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../core/utils/error_helper.dart';
 import '../dashboard/dashboard_page.dart';
 import '../onboarding/email_page.dart';
 
@@ -38,17 +39,14 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      print('Tentative de connexion avec les identifiants:');
-      print('Email: ${_emailController.text.trim()}');
+      debugPrint('Tentative de connexion...');
 
       final response = await _apiService.post('connexion', {
         'email': _emailController.text.trim(),
         'password': _passwordController.text,
       });
 
-      // Afficher la réponse complète dans la console
-      print('Réponse de l\'API:');
-      print(response.toString());
+      debugPrint('Réponse reçue du serveur');
 
       if (response['success'] == true) {
         // Récupérer le token directement depuis la racine de la réponse
@@ -57,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
 
         // Sauvegarder le token
         if (userToken != null) {
-          print('Token utilisateur reçu: $userToken');
+          debugPrint('Token utilisateur reçu');
           await _storageService.saveToken(userToken);
 
           // Sauvegarder les données utilisateur
@@ -70,10 +68,10 @@ class _LoginPageState extends State<LoginPage> {
               'id': userData['id'],
             };
 
-            print('Sauvegarde des données utilisateur: $userToSave');
+            debugPrint('Sauvegarde des données utilisateur');
             await _storageService.saveUserData(userToSave);
           } else {
-            print('Aucune donnée utilisateur à sauvegarder');
+            debugPrint('Aucune donnée utilisateur à sauvegarder');
           }
 
           if (mounted) {
@@ -83,44 +81,27 @@ class _LoginPageState extends State<LoginPage> {
             );
           }
         } else {
-          print('Aucun token utilisateur trouvé dans la réponse');
+          debugPrint('Aucun token utilisateur trouvé dans la réponse');
           setState(() {
             _errorMessage = 'Erreur: Token utilisateur manquant';
           });
         }
       } else {
         final errorMsg = response['message'] ?? 'Échec de la connexion';
-        print('Erreur de connexion: $errorMsg');
+        debugPrint('Erreur de connexion: $errorMsg');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.all(16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          );
+          ErrorHelper.showErrorSnackBar(context, errorMsg);
         }
         setState(() {
           _errorMessage = errorMsg;
         });
       }
     } catch (e) {
-      print('Erreur lors de la connexion: $e');
+      debugPrint('Erreur lors de la connexion: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erreur de connexion. Veuillez réessayer.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(8)),
-            ),
-          ),
+        ErrorHelper.showErrorSnackBar(
+          context,
+          'Erreur de connexion. Veuillez réessayer.',
         );
       }
       setState(() {
