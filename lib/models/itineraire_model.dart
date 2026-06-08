@@ -1,4 +1,4 @@
-import 'gare_model.dart';
+import 'gare1_model.dart';
 
 class ItineraireResponse {
   final Gare gare;

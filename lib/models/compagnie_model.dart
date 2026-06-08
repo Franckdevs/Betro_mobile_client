@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'gare_model.dart';
+import 'gare1_model.dart';
 
 class Compagnie {
   final int id;

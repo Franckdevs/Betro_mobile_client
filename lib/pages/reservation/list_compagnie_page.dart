@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../../models/compagnie_model.dart';
 import '../../services/api_service.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
 import 'detail_compagnie_page.dart';
 
 class ListCompagniePage extends StatefulWidget {
@@ -12,25 +11,51 @@ class ListCompagniePage extends StatefulWidget {
   State<ListCompagniePage> createState() => _ListCompagniePageState();
 }
 
-class _ListCompagniePageState extends State<ListCompagniePage> {
+class _ListCompagniePageState extends State<ListCompagniePage>
+    with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
-  // Variables pour la pagination
-  final int _itemsPerPage = 15;
-  int _currentPage = 1;
-  bool _isLoadingMore = false;
-  bool _hasMore = true;
+  static const _amber = Color(0xFFFFC107);
+  static const _itemsPerPage = 15;
 
   List<Compagnie> _allCompagnies = [];
   List<Compagnie> _displayedCompagnies = [];
   List<Compagnie> _filteredCompagnies = [];
+
+  int _currentPage = 1;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   late Future<void> _initialLoad;
+
+  late final AnimationController _enterCtrl;
+  late final Animation<Offset> _slideHeader;
+  late final Animation<double> _fadeHeader;
 
   @override
   void initState() {
     super.initState();
+    _enterCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _slideHeader = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOutCubic));
+    _fadeHeader = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
+    _enterCtrl.forward();
     _initialLoad = _loadInitialData();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _enterCtrl.dispose();
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -46,275 +71,171 @@ class _ListCompagniePageState extends State<ListCompagniePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur lors du chargement: $e')),
+          SnackBar(
+            content: Text('Erreur lors du chargement: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
   }
 
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore &&
+        _searchController.text.isEmpty) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    setState(() {
+      _currentPage = 1;
+      _hasMore = true;
+      _allCompagnies = [];
+      _displayedCompagnies = [];
+      _filteredCompagnies = [];
+    });
+    await _loadInitialData();
+  }
+
   Future<void> _loadMore() async {
     if (_isLoadingMore || !_hasMore) return;
-
-    setState(() {
-      _isLoadingMore = true;
-    });
-
+    setState(() => _isLoadingMore = true);
     try {
-      // Simuler un délai de chargement
-      await Future.delayed(const Duration(seconds: 1));
-
+      await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) {
-        final nextPageItems = _allCompagnies
+        final next = _allCompagnies
             .skip(_currentPage * _itemsPerPage)
             .take(_itemsPerPage)
             .toList();
-
         setState(() {
-          _displayedCompagnies.addAll(nextPageItems);
+          _displayedCompagnies.addAll(next);
           _currentPage++;
           _hasMore = _displayedCompagnies.length < _allCompagnies.length;
           _isLoadingMore = false;
         });
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingMore = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur lors du chargement: $e')),
-        );
-      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
   void _filterCompagnies(String query) {
     setState(() {
       _filteredCompagnies = _allCompagnies
-          .where(
-            (compagnie) => compagnie.nomComplet.toLowerCase().contains(
-              query.toLowerCase(),
-            ),
-          )
+          .where((c) => c.nomComplet.toLowerCase().contains(query.toLowerCase()))
           .toList();
     });
   }
 
+  List<Compagnie> get _visibleList =>
+      _searchController.text.isEmpty ? _displayedCompagnies : _filteredCompagnies;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.yellow,
-        toolbarHeight: 100, // Augmentation de la hauteur de l'AppBar
-        titleSpacing: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 16.0, top: 8.0),
-              child: Text(
-                'Choisissez une compagnie',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8.0,
-              ),
-              child: TextField(
-                controller: _searchController,
-                style: TextStyle(color: Colors.black, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Rechercher une compagnie...',
-                  hintStyle: TextStyle(color: Colors.grey[600]),
-                  suffixIcon: const SizedBox(
-                    width: 48,
-                  ), // Espace pour garder la forme
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 0,
-                    horizontal: 16,
-                  ),
-                  isDense: true,
-                ),
-                onChanged: (value) {
-                  _filterCompagnies(value);
-                },
-              ),
-            ),
-          ],
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
+      backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
         children: [
+          // ── Header jaune ─────────────────────────────────────
+          SlideTransition(
+            position: _slideHeader,
+            child: FadeTransition(
+              opacity: _fadeHeader,
+              child: _buildHeader(context),
+            ),
+          ),
+          // ── Body ─────────────────────────────────────────────
           Expanded(
             child: FutureBuilder<void>(
               future: _initialLoad,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
-                      strokeWidth: 3,
+                  return GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 0.85,
                     ),
+                    itemCount: 12,
+                    itemBuilder: (_, __) => const SkeletonCompagnieTile(),
                   );
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Erreur: ${snapshot.error}'));
+                }
+                if (snapshot.hasError) {
+                  return _buildError(snapshot.error.toString());
                 }
 
-                final compagnies = _searchController.text.isEmpty
-                    ? _displayedCompagnies
-                    : _filteredCompagnies;
+                final list = _visibleList;
 
-                if (compagnies.isEmpty) {
-                  return const Center(
-                    child: Text('Aucune compagnie disponible'),
-                  );
+                if (list.isEmpty) {
+                  return _buildEmpty();
                 }
 
                 return Column(
                   children: [
-                    // Compteur de compagnies
+                    // Compteur
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
-                      ),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${compagnies.length} compagnie${compagnies.length > 1 ? 's' : ''} disponible${compagnies.length > 1 ? 's' : ''}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                            fontWeight: FontWeight.w500,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${list.length} compagnie${list.length > 1 ? 's' : ''}'
+                            '${_searchController.text.isNotEmpty ? ' trouvée${list.length > 1 ? 's' : ''}' : ' disponible${list.length > 1 ? 's' : ''}'}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                    // Liste des compagnies avec défilement infini
+                    // Grille responsive
                     Expanded(
-                      child: NotificationListener<ScrollNotification>(
-                        onNotification: (ScrollNotification scrollInfo) {
-                          if (scrollInfo is ScrollEndNotification &&
-                              scrollInfo.metrics.pixels ==
-                                  scrollInfo.metrics.maxScrollExtent &&
-                              !_isLoadingMore &&
-                              _hasMore &&
-                              _searchController.text.isEmpty) {
-                            _loadMore();
-                          }
-                          return true;
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: MasonryGridView.count(
-                            crossAxisCount: 3,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 8,
-                            itemCount:
-                                _isLoadingMore && _searchController.text.isEmpty
-                                ? compagnies.length + 1
-                                : compagnies.length,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          const double tileMin = 120;
+                          final int cols =
+                              (constraints.maxWidth / tileMin).floor().clamp(2, 6);
+                          return RefreshIndicator(
+                            onRefresh: _onRefresh,
+                            color: _amber,
+                            strokeWidth: 2.5,
+                            child: GridView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: cols,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 0.85,
+                            ),
+                            itemCount: list.length + (_isLoadingMore ? 1 : 0),
                             itemBuilder: (context, index) {
-                              // Afficher l'indicateur de chargement à la fin de la liste
-                              if (index >= compagnies.length) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.yellow,
-                                      ),
-                                      strokeWidth: 3,
-                                    ),
+                              if (index >= list.length) {
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    valueColor:
+                                        AlwaysStoppedAnimation<Color>(_amber),
+                                    strokeWidth: 2.5,
                                   ),
                                 );
                               }
-
-                              final compagnie = compagnies[index];
-                              return GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => DetailCompagniePage(
-                                        compagnie: compagnie,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Card(
-                                  elevation: 2,
-                                  color: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        // Logo de la compagnie
-                                        Container(
-                                          width: 60,
-                                          height: 60,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.grey[200],
-                                            image: DecorationImage(
-                                              image:
-                                                  compagnie.logoUrl != null &&
-                                                      compagnie
-                                                          .logoUrl!
-                                                          .isNotEmpty
-                                                  ? NetworkImage(
-                                                      compagnie.logoUrl!,
-                                                    )
-                                                  : const AssetImage(
-                                                          'assets/images/default_company.png',
-                                                        )
-                                                        as ImageProvider,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 24),
-
-                                        // Nom de la compagnie
-                                        Text(
-                                          compagnie.nomComplet,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                              return _StaggerItem(
+                                index: index,
+                                child: _buildCompagnieTile(list[index]),
                               );
                             },
                           ),
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -327,9 +248,516 @@ class _ListCompagniePageState extends State<ListCompagniePage> {
     );
   }
 
+  // ── Header ────────────────────────────────────────────────────────────────
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: _amber,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Titre + retour
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Colors.black87, size: 20),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withOpacity(0.08),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Compagnies',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'Choisissez votre transporteur',
+                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Barre de recherche
+              Container(
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _filterCompagnies,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher une compagnie…',
+                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        color: Color(0xFFFFC107), size: 20),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                color: Colors.grey, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterCompagnies('');
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Carte compagnie ───────────────────────────────────────────────────────
+  Widget _buildCompagnieCard(Compagnie compagnie) {
+    final hasLogo = compagnie.logoUrl != null && compagnie.logoUrl!.isNotEmpty;
+    final garesCount = compagnie.gares.length;
+    final initials = compagnie.nomComplet.isNotEmpty
+        ? compagnie.nomComplet.substring(0, compagnie.nomComplet.length > 2 ? 2 : 1).toUpperCase()
+        : '?';
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DetailCompagniePage(compagnie: compagnie),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Logo / Avatar
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: hasLogo ? Colors.transparent : _amber.withOpacity(0.15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: hasLogo
+                    ? ClipOval(
+                        child: Image.network(
+                          compagnie.logoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: _amber,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: _amber,
+                          ),
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 14),
+              // Infos
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      compagnie.nomComplet,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (compagnie.adresse.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on_outlined,
+                              size: 12, color: Colors.grey[500]),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              compagnie.adresse,
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey[500]),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    // Badges
+                    Row(
+                      children: [
+                        if (garesCount > 0)
+                          _badge(
+                            icon: Icons.store_mall_directory_outlined,
+                            label: '$garesCount gare${garesCount > 1 ? 's' : ''}',
+                            color: const Color(0xFF1A237E),
+                            bgColor: const Color(0xFFE8EAF6),
+                          ),
+                        if (garesCount > 0) const SizedBox(width: 6),
+                        _badge(
+                          icon: Icons.circle,
+                          label: compagnie.status == '1' ? 'Actif' : 'Inactif',
+                          color: compagnie.status == '1'
+                              ? Colors.green[700]!
+                              : Colors.grey,
+                          bgColor: compagnie.status == '1'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.grey.withOpacity(0.1),
+                          iconSize: 7,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Chevron
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _amber.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.chevron_right_rounded,
+                    color: _amber, size: 20),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Tuile grille ──────────────────────────────────────────────────────────
+  Widget _buildCompagnieTile(Compagnie compagnie) {
+    final hasLogo = compagnie.logoUrl != null && compagnie.logoUrl!.isNotEmpty;
+    final initials = compagnie.nomComplet.isNotEmpty
+        ? compagnie.nomComplet
+            .substring(0, compagnie.nomComplet.length > 2 ? 2 : 1)
+            .toUpperCase()
+        : '?';
+    final isActive = compagnie.status == '1';
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DetailCompagniePage(compagnie: compagnie),
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Logo / Avatar
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: hasLogo
+                        ? Colors.transparent
+                        : _amber.withOpacity(0.15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: hasLogo
+                      ? ClipOval(
+                          child: Image.network(
+                            compagnie.logoUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: _amber,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: _amber,
+                            ),
+                          ),
+                        ),
+                ),
+                // Dot statut
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isActive ? Colors.green[600] : Colors.grey,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Nom
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                compagnie.nomComplet,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            if (compagnie.gares.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${compagnie.gares.length} gare${compagnie.gares.length > 1 ? 's' : ''}',
+                style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _badge({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color bgColor,
+    double iconSize = 12,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: iconSize, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  // ── États vides / erreur ──────────────────────────────────────────────────
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: _amber.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.business_outlined,
+                size: 48, color: _amber),
+          ),
+          const SizedBox(height: 16),
+          const Text('Aucune compagnie trouvée',
+              style:
+                  TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text(
+            _searchController.text.isNotEmpty
+                ? 'Essayez un autre terme de recherche'
+                : 'Aucune compagnie disponible pour le moment',
+            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError(String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const SizedBox(height: 12),
+          const Text('Erreur de chargement',
+              style:
+                  TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text(error,
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () => setState(() {
+              _initialLoad = _loadInitialData();
+            }),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Réessayer'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _amber,
+              foregroundColor: Colors.black87,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Animation stagger par tuile ───────────────────────────────────────────────
+class _StaggerItem extends StatefulWidget {
+  final int index;
+  final Widget child;
+
+  const _StaggerItem({required this.index, required this.child});
+
+  @override
+  State<_StaggerItem> createState() => _StaggerItemState();
+}
+
+class _StaggerItemState extends State<_StaggerItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+
+    final delay = 80 + widget.index.clamp(0, 12) * 45;
+    Future.delayed(Duration(milliseconds: delay), () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
   @override
   void dispose() {
-    _searchController.dispose();
+    _ctrl.dispose();
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(position: _slide, child: widget.child),
+    );
   }
 }

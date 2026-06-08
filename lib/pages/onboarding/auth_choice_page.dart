@@ -17,7 +17,14 @@ class AuthChoicePage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Logo
-                Image.asset("assets/images/logo.png", width: 150, height: 150),
+                ClipOval(
+                  child: Image.asset(
+                    "assets/images/logo.png",
+                    width: 150,
+                    height: 150,
+                    fit: BoxFit.cover,
+                  ),
+                ),
                 const SizedBox(height: 40),
 
                 // Titre

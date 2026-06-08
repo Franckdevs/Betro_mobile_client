@@ -26,10 +26,13 @@ class Welcome extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        'assets/images/logo.png',
-                        width: 100,
-                        height: 100,
+                      ClipOval(
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                       const SizedBox(width: 20),
                       Expanded(

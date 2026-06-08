@@ -222,10 +222,13 @@ class _IntroState extends State<Intro> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
-                  Image.asset(
-                    'assets/images/logo.png',
-                    width: 120,
-                    height: 120,
+                  ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Text(

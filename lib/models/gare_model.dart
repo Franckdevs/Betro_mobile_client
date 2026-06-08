@@ -1,3 +1,8 @@
+String _trimTime(String t) {
+  if (t.length >= 5) return t.substring(0, 5);
+  return t;
+}
+
 class Gare {
   final int id;
   final String nomGare;
@@ -15,6 +20,7 @@ class Gare {
   final Map<String, dynamic>? jourFermeture;
   final double latitude;
   final double longitude;
+  final String villeId;
 
   String get nomJourOuverture {
     if (jourOuvert is Map) {
@@ -47,6 +53,7 @@ class Gare {
     this.jourFermeture,
     required this.latitude,
     required this.longitude,
+    this.villeId = '',
   });
 
   factory Gare.fromJson(Map<String, dynamic> json) {
@@ -58,10 +65,10 @@ class Gare {
       email: json['email'] as String? ?? '',
       siteWeb: json['site_web'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      heureOuverture: json['heure_ouverture'] as String? ?? '',
-      heureFermeture: json['heure_fermeture'] as String? ?? '',
-      parkingDisponible: (json['parking_disponible'] as int?) == 1,
-      wifiDisponible: (json['wifi_disponible'] as int?) == 1,
+      heureOuverture: _trimTime(json['heure_ouverture'] as String? ?? ''),
+      heureFermeture: _trimTime(json['heure_fermeture'] as String? ?? ''),
+      parkingDisponible: json['parking_disponible'].toString() == '1',
+      wifiDisponible: json['wifi_disponible'].toString() == '1',
       ville: json['ville'] is Map
           ? (json['ville']?['nom_ville'] as String?) ?? 'Inconnue'
           : 'Inconnue',
@@ -73,6 +80,7 @@ class Gare {
           : null,
       latitude: double.tryParse((json['latitude']?.toString() ?? '0')) ?? 0.0,
       longitude: double.tryParse((json['longitude']?.toString() ?? '0')) ?? 0.0,
+      villeId: json['ville_id']?.toString() ?? '',
     );
   }
 }
