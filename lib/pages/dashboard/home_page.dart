@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
@@ -603,30 +602,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _buildBannerSlide(String? imageUrl) {
     return Stack(fit: StackFit.expand, children: [
       // Background : image ou dégradé amber
-      if (imageUrl != null) ...[
-        // Fond : la meme image en couvrant tout le cadre, flouttee et
-        // assombrie -- peu importe qu'elle soit rognee puisqu'elle est
-        // floue, ca comble le cadre sans bande vide ni couleur plate.
-        ClipRect(
-          child: ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => _bannerGradientBg(),
-              errorWidget: (_, __, ___) => _bannerGradientBg(),
-            ),
-          ),
-        ),
-        DecoratedBox(decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.18))),
-        // Premier plan : l'image entiere, nette, jamais rognee.
+      if (imageUrl != null)
         CachedNetworkImage(
           imageUrl: imageUrl,
-          fit: BoxFit.contain,
-          placeholder: (_, __) => const SizedBox.shrink(),
-          errorWidget: (_, __, ___) => const SizedBox.shrink(),
-        ),
-      ] else
+          fit: BoxFit.cover,
+          placeholder: (_, __) => _bannerGradientBg(),
+          errorWidget: (_, __, ___) => _bannerGradientBg(),
+        )
+      else
         _bannerGradientBg(),
       // Overlay dégradé pour lisibilité du texte
       if (imageUrl != null)
