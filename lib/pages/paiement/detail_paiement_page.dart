@@ -9,6 +9,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
+import '../../services/api_service.dart';
 import '../dashboard/ticket_page.dart';
 
 class DetailPaiementPage extends StatefulWidget {
@@ -129,32 +132,73 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
   );
 
   void _showFullImage(String url) {
-    showDialog(context: context, builder: (_) => Dialog(
-      backgroundColor: Colors.transparent, insetPadding: const EdgeInsets.all(20),
-      child: Stack(alignment: Alignment.topRight, children: [
-        Container(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.height * 0.6,
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-          child: ClipRRect(borderRadius: BorderRadius.circular(20),
-            child: Image.network(url, fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.broken_image, size: 64, color: Colors.grey.shade400),
-                const SizedBox(height: 16),
-                Text('Image non disponible', style: TextStyle(color: Colors.grey.shade600)),
-              ])),
+    showDialog(context: context, builder: (_) => StatefulBuilder(
+      builder: (dialogCtx, setDialogState) {
+        bool isDownloading = false;
+        return StatefulBuilder(builder: (dialogCtx, setSt) => Dialog(
+          backgroundColor: Colors.transparent, insetPadding: const EdgeInsets.all(20),
+          child: Stack(alignment: Alignment.topRight, children: [
+            Container(
+              width: double.infinity,
+              height: MediaQuery.of(context).size.height * 0.6,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              child: ClipRRect(borderRadius: BorderRadius.circular(20),
+                child: Image.network(url, fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.broken_image, size: 64, color: Colors.grey.shade400),
+                    const SizedBox(height: 16),
+                    Text('Image non disponible', style: TextStyle(color: Colors.grey.shade600)),
+                  ])),
+                ),
+              ),
             ),
-          ),
-        ),
-        Positioned(top: 10, right: 10,
-          child: Container(
-            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
-            child: IconButton(icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop()),
-          ),
-        ),
-      ]),
+            Positioned(top: 10, right: 10,
+              child: Container(
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
+                child: IconButton(icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop()),
+              ),
+            ),
+            Positioned(top: 10, left: 10,
+              child: Container(
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
+                child: isDownloading
+                    ? const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: SizedBox(width: 20, height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.download_rounded, color: Colors.white),
+                        tooltip: 'Télécharger l\'image',
+                        onPressed: () async {
+                          setSt(() => isDownloading = true);
+                          await _telechargerImage(url);
+                          setSt(() => isDownloading = false);
+                        },
+                      ),
+              ),
+            ),
+          ]),
+        ));
+      },
     ));
+  }
+
+  /// Télécharge l'image et ouvre le sheet natif pour l'enregistrer/partager.
+  Future<void> _telechargerImage(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) throw Exception('Échec du téléchargement');
+      final xfile = XFile.fromData(
+        response.bodyBytes,
+        name: 'betro_image_${DateTime.now().millisecondsSinceEpoch}.png',
+        mimeType: 'image/png',
+      );
+      await Share.shareXFiles([xfile]);
+    } catch (_) {
+      _toast('Impossible de télécharger l\'image', Colors.red);
+    }
   }
 
   String _getStatusText(dynamic status) {
@@ -360,6 +404,22 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
             _buildRow('Méthode', p['moyenPaiement'] ?? 'N/A'),
             _buildRow('Date', _formatDate(p['datePaiement'] ?? '')),
             _buildRow('Heure', p['HeurePaiement'] ?? 'N/A'),
+            if (p['code_paiement'] != null) ...[
+              const SizedBox(height: 8),
+              const Divider(height: 1, color: Color(0xFFF0F0F0)),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => _voirRecuEnLigne(p['code_paiement'].toString()),
+                child: Row(children: [
+                  Icon(Icons.open_in_new_rounded, size: 15, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Text('Voir le reçu en ligne',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.blue.shade700)),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: Colors.blue.shade700),
+                ]),
+              ),
+            ],
           ]),
           const SizedBox(height: 14),
 
@@ -613,6 +673,13 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
       const Spacer(),
       Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
     ]);
+  }
+
+  void _voirRecuEnLigne(String codePaiement) {
+    final baseUrl = ApiService.baseUrl.replaceAll('/api', '');
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => WebViewPage(url: '$baseUrl/status-paiement/$codePaiement'),
+    ));
   }
 
   void _ouvrirTicket() {
