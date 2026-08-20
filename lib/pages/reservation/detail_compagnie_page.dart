@@ -30,6 +30,9 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   final ScrollController _scrollController = ScrollController();
 
   List<Ville> _villes = [];
+  // Sous-ensemble de _villes : uniquement les villes ou cette compagnie a
+  // au moins une gare (au lieu de proposer toutes les villes du systeme).
+  List<Ville> _villesCompagnie = [];
   List<Gare> _gares = [];
   List<Map<String, dynamic>> _classes = [];
   String? _villeDepartId;
@@ -58,6 +61,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   void initState() {
     super.initState();
     _loadVilles();
+    _loadVillesCompagnie();
     _loadClasses();
     _searchPanelScrollController.addListener(_updateSearchPanelScrollIndicator);
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateSearchPanelScrollIndicator());
@@ -132,6 +136,40 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  /// Villes ou cette compagnie a reellement au moins une gare -- utilise
+  /// pour restreindre les suggestions de "Ville de depart"/"Ville d'arrivee"
+  /// au lieu de proposer toutes les villes du systeme.
+  Future<void> _loadVillesCompagnie() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/liste_gare_compagnie/${widget.compagnie.id}'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final list = (data['data'] as List).cast<Map<String, dynamic>>();
+          final gares = list.map((g) => Gare.fromJson(g)).toList();
+          final villesParId = <String, Ville>{};
+          for (final gare in gares) {
+            if (gare.villeId.isEmpty || villesParId.containsKey(gare.villeId)) continue;
+            final maintenant = DateTime.now();
+            villesParId[gare.villeId] = Ville(
+              id: int.tryParse(gare.villeId) ?? 0,
+              nomVille: gare.ville,
+              status: '',
+              createdAt: maintenant,
+              updatedAt: maintenant,
+            );
+          }
+          final villes = villesParId.values.toList()
+            ..sort((a, b) => a.nomVille.compareTo(b.nomVille));
+          setState(() => _villesCompagnie = villes);
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadClasses() async {
@@ -689,6 +727,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                 validator: (id) => id == null
                                     ? 'Sélectionnez une ville de départ'
                                     : null,
+                                villesDisponibles: _villesCompagnie,
                               ),
                             ),
                             Container(
@@ -714,6 +753,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                   }
                                   return null;
                                 },
+                                villesDisponibles: _villesCompagnie,
                               ),
                             ),
                           ],
@@ -1332,7 +1372,9 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     required String? selectedId,
     required void Function(String? id) onSelected,
     String? Function(String?)? validator,
+    List<Ville>? villesDisponibles,
   }) {
+    final sourceVilles = villesDisponibles ?? _villes;
     final initialVille = selectedId != null
         ? _villes.cast<Ville?>().firstWhere(
             (v) => v!.id.toString() == selectedId,
@@ -1357,7 +1399,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
             return const Iterable<Ville>.empty();
           }
         }
-        return _villes.where((v) => v.nomVille
+        return sourceVilles.where((v) => v.nomVille
             .toLowerCase()
             .contains(text.toLowerCase()));
       },
@@ -1487,6 +1529,21 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
           ),
           validator:
               validator != null ? (_) => validator(selectedId) : null,
+          onTapOutside: (_) {
+            FocusScope.of(context).unfocus();
+            // Un texte laisse dans le champ sans correspondre a une ville
+            // proposee (ni a la selection en cours) est efface : on ne
+            // peut pas valider autre chose qu'une ville reellement
+            // disponible pour cette compagnie.
+            final texte = textController.text.trim();
+            if (texte.isEmpty) return;
+            final correspond = sourceVilles.any(
+                (v) => v.nomVille.toLowerCase() == texte.toLowerCase());
+            if (!correspond) {
+              textController.clear();
+              onSelected(null);
+            }
+          },
         );
       },
     );
