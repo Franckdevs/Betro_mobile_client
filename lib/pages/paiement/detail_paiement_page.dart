@@ -352,12 +352,20 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 const Icon(Icons.circle, size: 8, color: Colors.green),
                 const SizedBox(width: 5),
-                Text(villeDepart, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                Flexible(
+                  child: Text(villeDepart,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis),
+                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8),
                   child: Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.grey),
                 ),
-                Text(villeArrivee, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                Flexible(
+                  child: Text(villeArrivee,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis),
+                ),
                 const SizedBox(width: 5),
                 const Icon(Icons.location_on_rounded, size: 8, color: Colors.red),
               ]),
@@ -654,7 +662,12 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
       const SizedBox(width: 10),
       Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
       const Spacer(),
-      Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+      Flexible(
+        child: Text(value,
+            textAlign: TextAlign.right,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+      ),
     ]);
   }
 

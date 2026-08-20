@@ -264,9 +264,12 @@ class ReservationList extends StatelessWidget {
             Row(children: [
               const Icon(Icons.calendar_today_outlined, size: 13, color: Colors.black45),
               const SizedBox(width: 4),
-              Text(
-                dateFormat.format(reservation.dateCreation.toLocal()),
-                style: const TextStyle(fontSize: 11, color: Colors.black54),
+              Flexible(
+                child: Text(
+                  dateFormat.format(reservation.dateCreation.toLocal()),
+                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const SizedBox(width: 10),
               const Icon(Icons.airline_seat_recline_normal_rounded,
