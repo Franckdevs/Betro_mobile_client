@@ -13,16 +13,12 @@ class ConnectivityListener extends StatefulWidget {
 }
 
 class _ConnectivityListenerState extends State<ConnectivityListener> {
-  bool _showNoConnectionPage = false;
+  final bool _showNoConnectionPage = false;
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ConnectivityService>(
       builder: (context, connectivityService, _) {
-        if (connectivityService == null) {
-          return widget.child;
-        }
-
         return Stack(
           children: [
             widget.child,

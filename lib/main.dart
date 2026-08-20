@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/constant/colors.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/storage_service.dart';
@@ -45,20 +45,10 @@ void main() async {
     storageService: storageService,
   );
 
-  // Vérifie si l'utilisateur est connecté
-  bool isLoggedIn = await authService.isLoggedIn();
-
-  // Si connecté, vérifier immédiatement si le compte est bloqué
-  if (isLoggedIn) {
-    final token = await storageService.getToken();
-    if (token != null) {
-      final result = await apiService.verifierStatutCompte(token);
-      if (result['est_bloque'] == true) {
-        await storageService.clearAllUserData();
-        isLoggedIn = false;
-      }
-    }
-  }
+  // Lecture locale (SharedPreferences) — pas d'appel réseau ici : la
+  // vérification du statut du compte se fait après le premier rendu,
+  // sinon l'app reste sur un écran blanc le temps de la requête.
+  final bool isLoggedIn = await authService.isLoggedIn();
 
   runApp(
     ChangeNotifierProvider(
@@ -96,11 +86,23 @@ class _PasserAppState extends State<PasserApp> with WidgetsBindingObserver {
   bool _dialogBlocageAffiche = false;
   late final _StatutCompteObserver _routeObserver;
 
+  /// Intervalle minimum entre deux vérifications réseau du statut du compte.
+  /// Sans ce garde-fou, chaque push/pop de route déclenchait une requête HTTP.
+  static const Duration _intervalleVerification = Duration(minutes: 2);
+  DateTime? _derniereVerification;
+  bool _verificationEnCours = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _routeObserver = _StatutCompteObserver(_verifierStatutCompte);
+    // Vérification initiale après le premier rendu : l'app est déjà affichée.
+    if (widget.isLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _verifierStatutCompte(forcer: true);
+      });
+    }
   }
 
   @override
@@ -113,14 +115,33 @@ class _PasserAppState extends State<PasserApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _verifierStatutCompte();
+      _verifierStatutCompte(forcer: true);
     }
   }
 
-  Future<void> _verifierStatutCompte() async {
+  Future<void> _verifierStatutCompte({bool forcer = false}) async {
+    if (_verificationEnCours) return;
+
+    final maintenant = DateTime.now();
+    if (!forcer &&
+        _derniereVerification != null &&
+        maintenant.difference(_derniereVerification!) < _intervalleVerification) {
+      return;
+    }
+
     final token = await widget.storageService.getToken();
     if (token == null) return;
 
+    _verificationEnCours = true;
+    _derniereVerification = maintenant;
+    try {
+      await _traiterStatutCompte(token);
+    } finally {
+      _verificationEnCours = false;
+    }
+  }
+
+  Future<void> _traiterStatutCompte(String token) async {
     final result = await widget.apiService.verifierStatutCompte(token);
     if (result['est_bloque'] == true && !_dialogBlocageAffiche) {
       await widget.storageService.clearAllUserData();
@@ -181,11 +202,7 @@ class _PasserAppState extends State<PasserApp> with WidgetsBindingObserver {
         Locale('en', 'US'),
       ],
       locale: const Locale('fr', 'FR'),
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Montserrat',
-        scaffoldBackgroundColor: Colors.white,
-      ),
+      theme: AppTheme.light,
       home: widget.isLoggedIn ? const Dashboard() : const Welcome(),
       routes: AppRoutes.routes,
       builder: (context, child) {

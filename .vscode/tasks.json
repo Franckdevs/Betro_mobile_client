@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Reconnecte la tablette en debogage sans fil (le port change a chaque
+      // redemarrage). A lancer avant F5 quand l'appareil a disparu du selecteur.
+      // Ctrl+Shift+P > "Tasks: Run Task" > "Tablette : reconnecter"
+      "label": "Tablette : reconnecter",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/scripts/adb-reconnect.ps1"
+      ],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "Flutter : clean + pub get",
+      "type": "shell",
+      "command": "flutter clean; flutter pub get",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    }
+  ]
+}

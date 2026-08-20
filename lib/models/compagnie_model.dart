@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'gare1_model.dart';
+import '../core/utils/logger.dart';
 
 class Compagnie {
   final int id;
@@ -34,8 +35,8 @@ class Compagnie {
   factory Compagnie.fromJson(Map<String, dynamic> json) {
     try {
       if (kDebugMode) {
-        print('⚙️ Données JSON reçues pour Compagnie:');
-        print(jsonEncode(json));
+        logDebug('⚙️ Données JSON reçues pour Compagnie:');
+        logDebug(jsonEncode(json));
       }
 
       final garesJson = json['liste_gares'] as List<dynamic>?;
@@ -55,7 +56,7 @@ class Compagnie {
 
       for (final field in requiredFields) {
         if (json[field] == null) {
-          print('⚠️ Champ manquant ou null dans la réponse API: $field');
+          logDebug('⚠️ Champ manquant ou null dans la réponse API: $field');
         }
       }
 
@@ -84,20 +85,20 @@ class Compagnie {
       );
 
       if (kDebugMode) {
-        print('✅ Compagnie créée avec succès:');
-        print('   - ID: ${compagnie.id}');
-        print('   - Nom: ${compagnie.nomComplet}');
-        print('   - Email: ${compagnie.email}');
-        print('   - Téléphone: ${compagnie.telephone}');
-        print('   - Nombre de gares: ${compagnie.gares.length}');
+        logDebug('✅ Compagnie créée avec succès:');
+        logDebug('   - ID: ${compagnie.id}');
+        logDebug('   - Nom: ${compagnie.nomComplet}');
+        logDebug('   - Email: ${compagnie.email}');
+        logDebug('   - Téléphone: ${compagnie.telephone}');
+        logDebug('   - Nombre de gares: ${compagnie.gares.length}');
       }
 
       return compagnie;
     } catch (e, stackTrace) {
-      print('❌ Erreur lors de la création d\'une Compagnie depuis le JSON:');
-      print('   - Erreur: $e');
-      print('   - StackTrace: $stackTrace');
-      print('   - Données problématiques: ${jsonEncode(json)}');
+      logDebug('❌ Erreur lors de la création d\'une Compagnie depuis le JSON:');
+      logDebug('   - Erreur: $e');
+      logDebug('   - StackTrace: $stackTrace');
+      logDebug('   - Données problématiques: ${jsonEncode(json)}');
       rethrow;
     }
   }

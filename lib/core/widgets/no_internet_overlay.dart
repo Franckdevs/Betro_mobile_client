@@ -39,7 +39,7 @@ class _NoInternetOverlayState extends State<NoInternetOverlay>
     setState(() => _isChecking = true);
     // Petite pause pour que l'animation soit visible
     await Future.delayed(const Duration(milliseconds: 800));
-    final results = await Connectivity().checkConnectivity();
+    await Connectivity().checkConnectivity();
     // Le ConnectivityService va notifier automatiquement si la connexion revient.
     // On arrête juste le spinner ici.
     if (mounted) setState(() => _isChecking = false);
@@ -73,7 +73,7 @@ class _NoInternetOverlayState extends State<NoInternetOverlay>
                         color: const Color(0xFFFFF8E1),
                         shape: BoxShape.circle,
                         border: Border.all(
-                            color: const Color(0xFFFFC107).withOpacity(0.3),
+                            color: const Color(0xFFFFC107).withValues(alpha: 0.3),
                             width: 2),
                       ),
                       child: const Icon(Icons.wifi_off_rounded,
@@ -117,7 +117,7 @@ class _NoInternetOverlayState extends State<NoInternetOverlay>
                         backgroundColor: const Color(0xFFFFC107),
                         foregroundColor: Colors.black87,
                         disabledBackgroundColor:
-                            const Color(0xFFFFC107).withOpacity(0.5),
+                            const Color(0xFFFFC107).withValues(alpha: 0.5),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),

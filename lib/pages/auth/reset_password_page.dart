@@ -149,7 +149,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
+                                    color: Colors.black.withValues(alpha: 0.2),
                                     blurRadius: 16,
                                     offset: const Offset(0, 4),
                                   ),
@@ -183,7 +183,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                             'Choisissez un nouveau mot de passe\npour votre compte',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.75),
+                              color: Colors.white.withValues(alpha: 0.75),
                               fontSize: 13,
                               height: 1.5,
                             ),
@@ -250,9 +250,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                 backgroundColor: Colors.amber,
                                 foregroundColor: Colors.black87,
                                 disabledBackgroundColor:
-                                    Colors.amber.withOpacity(0.5),
+                                    Colors.amber.withValues(alpha: 0.5),
                                 elevation: 4,
-                                shadowColor: Colors.amber.withOpacity(0.35),
+                                shadowColor: Colors.amber.withValues(alpha: 0.35),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),

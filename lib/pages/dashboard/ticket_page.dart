@@ -1,3 +1,4 @@
+import '../../core/utils/parsing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -8,14 +9,14 @@ import '../../models/reservation_model.dart';
 import '../../models/voyage_extra_model.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
-import '../reservation/detail_gare_page.dart';
 import '../paiement/detail_paiement_page.dart';
 import 'gare_map_page.dart';
+import '../../core/utils/logger.dart';
 
 class TicketPage extends StatefulWidget {
   final Map<String, dynamic> reservation;
 
-  const TicketPage({Key? key, required this.reservation}) : super(key: key);
+  const TicketPage({super.key, required this.reservation});
 
   @override
   State<TicketPage> createState() => _TicketPageState();
@@ -26,9 +27,6 @@ class _TicketPageState extends State<TicketPage> with SingleTickerProviderStateM
   bool _isBusInfoExpanded = false;
   bool _isChauffeurInfoExpanded = false;
   bool _isCompanyInfoExpanded = false;
-  bool _isChauffeurSummaryExpanded = true;
-  bool _isChauffeurInfractionsExpanded = true;
-  bool _isChauffeurSectionVisible = true;
   bool _isItineraireExpanded = true;
   VoyageExtra? _voyageExtraInfo;
   bool _isLoadingExtra = false;
@@ -73,13 +71,13 @@ class _TicketPageState extends State<TicketPage> with SingleTickerProviderStateM
         final token = await StorageService().getToken();
         final response = await ApiService().get('information_des_chaffeur_apprentir_bus/$vid', token: token);
         // log entire payload for debugging
-        debugPrint('Voyage extra API réponse : $response');
-        debugPrint('Response type: ${response.runtimeType}');
-        if (response is Map && response['data'] != null) {
+        logDebug('Voyage extra API réponse : $response');
+        logDebug('Response type: ${response.runtimeType}');
+        if (response['data'] != null) {
           // also log sub-objects so we can see details in console
-          debugPrint('Bus details: ${response['data']['bus']}');
-          debugPrint('Chauffeur details: ${response['data']['chauffeur']}');
-          debugPrint('Company details: ${response['data']['compagnie']}');
+          logDebug('Bus details: ${response['data']['bus']}');
+          logDebug('Chauffeur details: ${response['data']['chauffeur']}');
+          logDebug('Company details: ${response['data']['compagnie']}');
           
           if (response['success'] == true) {
             // Extraire numero_reservation depuis response['reservations']
@@ -100,14 +98,14 @@ class _TicketPageState extends State<TicketPage> with SingleTickerProviderStateM
               }
             }
             try {
-              debugPrint('Parsing VoyageExtra from: ${response['data'].runtimeType}');
+              logDebug('Parsing VoyageExtra from: ${response['data'].runtimeType}');
               final voyageExtraData = VoyageExtra.fromJson(response['data'] as Map<String, dynamic>);
               setState(() {
                 _voyageExtraInfo = voyageExtraData;
               });
-              debugPrint('VoyageExtraInfo stocké dans l\'état avec succès');
+              logDebug('VoyageExtraInfo stocké dans l\'état avec succès');
             } catch (parseError) {
-              debugPrint('Erreur parsing VoyageExtra: $parseError');
+              logDebug('Erreur parsing VoyageExtra: $parseError');
               // Create empty VoyageExtra as fallback
               setState(() {
                 _voyageExtraInfo = VoyageExtra(
@@ -132,7 +130,7 @@ class _TicketPageState extends State<TicketPage> with SingleTickerProviderStateM
           }
         }
       } catch (e) {
-        debugPrint('Erreur récupération info voyage : $e');
+        logDebug('Erreur récupération info voyage : $e');
       } finally {
         setState(() {
           _isLoadingExtra = false;
@@ -141,23 +139,6 @@ class _TicketPageState extends State<TicketPage> with SingleTickerProviderStateM
     }
   }
 
-Future<void> _openGoogleMapsItinerary({
-  required String startLat,
-  required String startLng,
-  required String endLat,
-  required String endLng,
-}) async {
-  final url =
-      'https://www.google.com/maps/dir/?api=1&origin=$startLat,$startLng&destination=$endLat,$endLng&travelmode=driving';
-
-  final uri = Uri.parse(url);
-
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } else {
-    debugPrint("Impossible d'ouvrir Google Maps");
-  }
-}
 
 
 Future<void> _startNavigation({
@@ -184,7 +165,7 @@ Future<void> _startNavigation({
     try {
       reservationObj = Reservation.fromJson(widget.reservation);
     } catch (e) {
-      print('Erreur lors de la création de l\'objet Reservation: $e');
+      logDebug('Erreur lors de la création de l\'objet Reservation: $e');
       reservationObj = null;
     }
 
@@ -198,25 +179,16 @@ Future<void> _startNavigation({
     final extraBus = _voyageExtraInfo?.bus;
     final extraChauffeur = _voyageExtraInfo?.chauffeur;
     final extraCompany = _voyageExtraInfo?.compagnie;
-    final extraAgent = _voyageExtraInfo?.agent;
 
     // choose API-provided values first, fall back to reservation map
-    final busInfo = extraBus?.nomBus ?? widget.reservation['voyage']['bus']['nom_bus'] ?? '';
-    final busNumber = extraBus?.immatriculationBus ?? widget.reservation['voyage']['bus']['immatriculation_bus'] ?? '';
 
-    // sizes (number of keys) - use reasonable counts for typed objects
-    final busDataSize = 15; // Bus has 15 fields
-    final chauffeurDataSize = 12; // Chauffeur has 12 fields
-    final companyDataSize = 15; // Compagnie has 15 fields
-    final priceRaw = (widget.reservation['arret']['montant'] ?? 0).toInt();
+    final priceRaw = asInt(widget.reservation['arret']['montant']);
     final price = NumberFormat('#,##0', 'fr').format(priceRaw).replaceAll(',', ' ');
     final date = _formatDate(widget.reservation['voyage']['date_depart'] ?? '');
     final time = _formatTime(widget.reservation['voyage']['heure_depart'] ?? '');
     final duree = widget.reservation['voyage']['duree_voyage']?.toString() ?? '';
     final seatNumber = widget.reservation['numero_place']?.toString() ?? '';
     // prefer the strongly-typed object, fallback to raw map
-    final voyageId = reservationObj?.voyageId ??
-        (widget.reservation['voyage'] != null ? widget.reservation['voyage']['id'] : null);
     final totalSeats =
         widget.reservation['voyage']['bus']['places']?.length.toString() ?? '0';
     final reservationId = widget.reservation['id']?.toString() ?? '';
@@ -236,22 +208,22 @@ Future<void> _startNavigation({
     final agentInfractions = _voyageExtraInfo?.agent.infractions ?? '';
     
     // Debug logging for infractions
-    debugPrint('=== INFRACTIONS DEBUG ===');
-    debugPrint('Bus Infractions (API): ${_voyageExtraInfo?.bus.infractions}');
-    debugPrint('Bus Infractions (Reservation): ${reservationObj?.busInfractions}');
-    debugPrint('Bus Infractions (Final): $busInfractions');
-    debugPrint('---');
-    debugPrint('Chauffeur Infractions (API): ${_voyageExtraInfo?.chauffeur.infractions}');
-    debugPrint('Chauffeur Infractions (Reservation): ${reservationObj?.chauffeurInfractions}');
-    debugPrint('Chauffeur Infractions (Final): $chauffeurInfractions');
-    debugPrint('---');
-    debugPrint('Company Infractions (API): ${_voyageExtraInfo?.compagnie.infractions}');
-    debugPrint('Company Infractions (Reservation): ${reservationObj?.companyInfractions}');
-    debugPrint('Company Infractions (Final): $companyInfractions');
-    debugPrint('---');
-    debugPrint('Agent Infractions (API): ${_voyageExtraInfo?.agent.infractions}');
-    debugPrint('Agent Infractions (Final): $agentInfractions');
-    debugPrint('======================');
+    logDebug('=== INFRACTIONS DEBUG ===');
+    logDebug('Bus Infractions (API): ${_voyageExtraInfo?.bus.infractions}');
+    logDebug('Bus Infractions (Reservation): ${reservationObj?.busInfractions}');
+    logDebug('Bus Infractions (Final): $busInfractions');
+    logDebug('---');
+    logDebug('Chauffeur Infractions (API): ${_voyageExtraInfo?.chauffeur.infractions}');
+    logDebug('Chauffeur Infractions (Reservation): ${reservationObj?.chauffeurInfractions}');
+    logDebug('Chauffeur Infractions (Final): $chauffeurInfractions');
+    logDebug('---');
+    logDebug('Company Infractions (API): ${_voyageExtraInfo?.compagnie.infractions}');
+    logDebug('Company Infractions (Reservation): ${reservationObj?.companyInfractions}');
+    logDebug('Company Infractions (Final): $companyInfractions');
+    logDebug('---');
+    logDebug('Agent Infractions (API): ${_voyageExtraInfo?.agent.infractions}');
+    logDebug('Agent Infractions (Final): $agentInfractions');
+    logDebug('======================');
 
 
 
@@ -314,7 +286,7 @@ Future<void> _startNavigation({
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 14, offset: const Offset(0, 5))],
                       ),
                       padding: const EdgeInsets.all(20),
@@ -372,14 +344,14 @@ Future<void> _startNavigation({
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(children: [
-                            _heroStat(Icons.calendar_today_rounded, date, 'Date'),
+                            _heroStat(date, 'Date'),
                             _heroDivider(),
-                            _heroStat(Icons.access_time_rounded, time, 'Heure'),
+                            _heroStat(time, 'Heure'),
                             _heroDivider(),
-                            _heroStat(Icons.airline_seat_recline_normal_rounded, seatNumber, 'Siège'),
+                            _heroStat(seatNumber, 'Siège'),
                             if (duree.isNotEmpty) ...[
                               _heroDivider(),
-                              _heroStat(Icons.timer_outlined, duree, 'Durée'),
+                              _heroStat(duree, 'Durée'),
                             ],
                           ]),
                         ),
@@ -395,7 +367,7 @@ Future<void> _startNavigation({
                   opacity: _fadeBody,
                   child: Row(children: [
                     if (ticketNumber != 'N/A') ...[
-                      _infoChip(null, ticketNumber, 'Référence', const Color(0xFFFFC107)),
+                      _infoChip(null, ticketNumber, 'Référence', const Color(0xFFFFC107), copiable: true),
                       const SizedBox(width: 10),
                     ],
                     _infoChip(null, '$price FCFA', 'Prix', const Color(0xFF2E7D32)),
@@ -424,7 +396,7 @@ Future<void> _startNavigation({
                           color: const Color(0xFF1565C0),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [BoxShadow(
-                            color: const Color(0xFF1565C0).withOpacity(0.35),
+                            color: const Color(0xFF1565C0).withValues(alpha: 0.35),
                             blurRadius: 8, offset: const Offset(0, 3),
                           )],
                         ),
@@ -432,7 +404,7 @@ Future<void> _startNavigation({
                           Container(
                             padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(Icons.receipt_rounded, color: Colors.white, size: 16),
@@ -445,7 +417,7 @@ Future<void> _startNavigation({
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 12),
@@ -487,9 +459,36 @@ Future<void> _startNavigation({
                                   child: Stack(children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(10),
-                                      child: Image.network(photos.first,
-                                          height: 100, width: double.infinity, fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                                      child: AspectRatio(
+                                        // Ratio fixe : la carte garde une hauteur stable
+                                        // quelle que soit la taille de la photo reçue.
+                                        aspectRatio: 16 / 9,
+                                        child: Container(
+                                          width: double.infinity,
+                                          color: const Color(0xFFF1F3F5),
+                                          child: Image.network(
+                                            photos.first,
+                                            // `contain` garde la photo entière visible.
+                                            // `cover` sur une hauteur de 100 px rognait
+                                            // le toit et les roues du bus.
+                                            fit: BoxFit.contain,
+                                            loadingBuilder: (_, child, progress) =>
+                                                progress == null
+                                                    ? child
+                                                    : const Center(
+                                                        child: SizedBox(
+                                                          width: 22,
+                                                          height: 22,
+                                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                                        ),
+                                                      ),
+                                            errorBuilder: (_, __, ___) => const Center(
+                                              child: Icon(Icons.directions_bus_rounded,
+                                                  color: Colors.black26, size: 32),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                     if (photos.length > 1)
                                       Positioned(
@@ -525,14 +524,16 @@ Future<void> _startNavigation({
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
                                         child: Container(
-                                          width: 50,
-                                          height: 36,
+                                          width: 56,
+                                          height: 40,
+                                          padding: const EdgeInsets.all(2),
                                           decoration: BoxDecoration(
+                                            color: const Color(0xFFF1F3F5),
                                             borderRadius: BorderRadius.circular(8),
                                             border: Border.all(color: Colors.grey.shade300),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(0.08),
+                                                color: Colors.black.withValues(alpha: 0.08),
                                                 blurRadius: 3,
                                                 offset: const Offset(0, 1),
                                               ),
@@ -540,8 +541,10 @@ Future<void> _startNavigation({
                                           ),
                                           child: Image.network(
                                             photos[i],
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (_, __, ___) => const Icon(
+                                                Icons.directions_bus_rounded,
+                                                color: Colors.black26, size: 16),
                                           ),
                                         ),
                                       ),
@@ -684,33 +687,59 @@ Future<void> _startNavigation({
                     color: const Color(0xFFE65100),
                     expanded: _isCompanyInfoExpanded,
                     onToggle: () => setState(() => _isCompanyInfoExpanded = !_isCompanyInfoExpanded),
-                    child: Column(children: [
-                      if (extraCompany.logoCompagnies.isNotEmpty)
-                        Builder(builder: (ctx) {
-                          final url = extraCompany.logoCompagnies;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Center(child: GestureDetector(
-                              onTap: () => _showFullImage(ctx, url),
-                              child: Hero(
-                                tag: url,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.network(url,
-                                      height: 60, width: 100, fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const SizedBox.shrink()),
-                                ),
-                              ),
-                            )),
-                          );
-                        }),
-                      _infoRow(null, 'Nom de la compagnie', extraCompany.nomCompletCompagnies),
-                      _infoRow(null, 'Email', extraCompany.emailCompagnies),
-                      _phoneRow('Téléphone', extraCompany.telephoneCompagnies),
-                      _infoRow(null, 'Adresse', extraCompany.adresse),
-                      if (companyInfractions.isNotEmpty)
-                        _infractionBadge(companyInfractions),
-                    ]),
+                    child: Builder(builder: (ctx) {
+                      final tel = extraCompany.telephoneCompagnies.trim();
+                      final email = extraCompany.emailCompagnies.trim();
+                      final adresse = extraCompany.adresse.trim();
+
+                      return Column(children: [
+                        _identiteCompagnie(
+                          ctx,
+                          extraCompany.logoCompagnies,
+                          extraCompany.nomCompletCompagnies,
+                        ),
+                        _ligneContact(
+                          icone: Icons.phone_rounded,
+                          label: 'Téléphone',
+                          valeur: tel,
+                          action: _estRenseigne(tel) ? Uri.parse('tel:$tel') : null,
+                          // Appeler est la seule action urgente depuis un billet :
+                          // c'est la seule qui reçoit un bouton plein.
+                          boutonPrincipal: _estRenseigne(tel)
+                              ? Material(
+                                  color: const Color(0xFF2E7D32),
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () => _ouvrirUri(Uri.parse('tel:$tel')),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(9),
+                                      child: Icon(Icons.call_rounded,
+                                          size: 18, color: Colors.white),
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                        _ligneContact(
+                          icone: Icons.mail_outline_rounded,
+                          label: 'Email',
+                          valeur: email,
+                          action: _estRenseigne(email) ? Uri.parse('mailto:$email') : null,
+                        ),
+                        _ligneContact(
+                          icone: Icons.place_outlined,
+                          label: 'Adresse',
+                          valeur: adresse,
+                          action: _estRenseigne(adresse)
+                              ? Uri.parse(
+                                  'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(adresse)}')
+                              : null,
+                        ),
+                        if (companyInfractions.isNotEmpty)
+                          _infractionBadge(companyInfractions),
+                      ]);
+                    }),
                   ),
 
                 const SizedBox(height: 10),
@@ -745,7 +774,7 @@ Future<void> _startNavigation({
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 12, offset: const Offset(0, 4))],
                   ),
                   padding: const EdgeInsets.all(24),
@@ -771,44 +800,55 @@ Future<void> _startNavigation({
                       ),
                     const SizedBox(height: 8),
                     if (qrData.isNotEmpty)
-                      GestureDetector(
-                        onLongPress: () {
-                          Clipboard.setData(ClipboardData(text: qrData));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Copié !'),
-                              duration: Duration(seconds: 1),
-                              behavior: SnackBarBehavior.floating,
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          // Appui simple ET appui long : le copier était
+                          // auparavant réservé à l'appui long, donc invisible.
+                          onTap: () => _copierDansPressePapiers(qrData),
+                          onLongPress: () => _copierDansPressePapiers(qrData),
+                          child: Container(
+                            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF8E1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFFFC107).withValues(alpha: 0.4)),
                             ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF8E1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                            const Text('N° Réservation',
-                                style: TextStyle(fontSize: 10, color: Colors.grey)),
-                            const SizedBox(height: 4),
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                              const Icon(Icons.qr_code_rounded, size: 14, color: Color(0xFFFFC107)),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                                const Text('N° Réservation',
+                                    style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                const SizedBox(height: 4),
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                                  const Icon(Icons.qr_code_rounded, size: 14, color: Color(0xFFFFC107)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    qrData,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                ]),
+                                const SizedBox(height: 2),
+                                const Text('Appuyez pour copier',
+                                    style: TextStyle(fontSize: 9, color: Colors.grey)),
+                              ]),
                               const SizedBox(width: 6),
-                              Text(
-                                qrData,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                  letterSpacing: 1.5,
-                                ),
+                              // Cible tactile explicite, visible sans découverte.
+                              IconButton(
+                                onPressed: () => _copierDansPressePapiers(qrData),
+                                icon: const Icon(Icons.copy_rounded, size: 18),
+                                color: const Color(0xFF8D6E00),
+                                tooltip: 'Copier le n° de réservation',
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                               ),
                             ]),
-                            const SizedBox(height: 2),
-                            const Text('Appui long pour copier',
-                                style: TextStyle(fontSize: 9, color: Colors.grey)),
-                          ]),
+                          ),
                         ),
                       ),
                     const SizedBox(height: 16),
@@ -847,7 +887,7 @@ Future<void> _startNavigation({
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                       decoration: BoxDecoration(
-                        color: isScanned ? const Color(0xFF2E7D32).withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                        color: isScanned ? const Color(0xFF2E7D32).withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                             color: isScanned ? const Color(0xFF2E7D32) : Colors.orange),
@@ -957,6 +997,132 @@ Future<void> _startNavigation({
     ));
   }
 
+  static const _orangeCompagnie = Color(0xFFE65100);
+
+  Future<void> _ouvrirUri(Uri uri) async {
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  bool _estRenseigne(String? v) {
+    final s = v?.trim() ?? '';
+    return s.isNotEmpty && s != 'N/A';
+  }
+
+  /// Sceau d'identité du transporteur : logo circulaire + raison sociale.
+  Widget _identiteCompagnie(BuildContext ctx, String logoUrl, String nom) {
+    return Column(children: [
+      if (_estRenseigne(logoUrl))
+        GestureDetector(
+          onTap: () => _showFullImage(ctx, logoUrl),
+          child: Hero(
+            tag: logoUrl,
+            child: Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                border: Border.all(color: _orangeCompagnie.withValues(alpha: 0.25), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Padding(
+                  // Marge intérieure : sans elle, un logo carré viendrait
+                  // toucher l'anneau et paraîtrait rogné.
+                  padding: const EdgeInsets.all(11),
+                  child: Image.network(
+                    logoUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                        Icons.business_rounded, color: Colors.black26, size: 28),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      if (_estRenseigne(nom)) ...[
+        const SizedBox(height: 12),
+        Text(
+          nom,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+            height: 1.25,
+          ),
+        ),
+      ],
+      const SizedBox(height: 14),
+      Divider(height: 1, color: Colors.grey.shade200),
+      const SizedBox(height: 6),
+    ]);
+  }
+
+  /// Ligne de contact actionnable : libellé au-dessus, valeur en dessous,
+  /// alignés à gauche — les emails et adresses longs ne sont plus comprimés
+  /// dans la colonne de droite.
+  Widget _ligneContact({
+    required IconData icone,
+    required String label,
+    required String valeur,
+    Uri? action,
+    Widget? boutonPrincipal,
+  }) {
+    final renseigne = _estRenseigne(valeur);
+    final contenu = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: _orangeCompagnie.withValues(alpha: 0.09),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icone, size: 17, color: _orangeCompagnie),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: Colors.grey, height: 1.2)),
+            const SizedBox(height: 2),
+            Text(
+              renseigne ? valeur.trim() : 'Non renseigné',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: renseigne ? FontWeight.w600 : FontWeight.w400,
+                color: renseigne ? Colors.black87 : Colors.grey,
+                height: 1.3,
+              ),
+            ),
+          ]),
+        ),
+        if (boutonPrincipal != null) ...[const SizedBox(width: 8), boutonPrincipal],
+      ]),
+    );
+
+    if (!renseigne || action == null) return contenu;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _ouvrirUri(action),
+        child: contenu,
+      ),
+    );
+  }
+
   Widget _phoneRow(String label, String phone) {
     final clean = phone.trim();
     if (clean.isEmpty || clean == 'N/A') {
@@ -980,7 +1146,7 @@ Future<void> _startNavigation({
           child: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.12),
+              color: Colors.green.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.call_rounded, size: 16, color: Colors.green),
@@ -990,32 +1156,32 @@ Future<void> _startNavigation({
     );
   }
 
-  Widget _heroStat(IconData icon, String value, String label) {
+  Widget _heroStat(String value, String label) {
     return Expanded(child: Column(children: [
-      Icon(icon, size: 16, color: const Color(0xFFFFC107)),
-      const SizedBox(height: 4),
       Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
           textAlign: TextAlign.center),
+      const SizedBox(height: 2),
       Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
     ]));
   }
 
   Widget _heroDivider() =>
-      Container(width: 1, height: 36, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 4));
+      Container(width: 1, height: 28, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 4));
 
-  Widget _infoChip(IconData? icon, String value, String label, Color color) {
-    return Expanded(child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  Widget _infoChip(IconData? icon, String value, String label, Color color,
+      {bool copiable = false}) {
+    final contenu = Container(
+      padding: EdgeInsets.fromLTRB(14, 12, copiable ? 4 : 14, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Row(children: [
         if (icon != null) ...[
           Container(
             padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
             child: Icon(icon, size: 16, color: color),
           ),
           const SizedBox(width: 10),
@@ -1025,8 +1191,33 @@ Future<void> _startNavigation({
           Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
               overflow: TextOverflow.ellipsis),
         ])),
+        if (copiable)
+          IconButton(
+            onPressed: () => _copierDansPressePapiers(value),
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            color: Colors.grey.shade600,
+            tooltip: 'Copier $label',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+          ),
       ]),
-    ));
+    );
+
+    if (!copiable) return Expanded(child: contenu);
+
+    // Toute la carte est cliquable, en plus du bouton dédié.
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _copierDansPressePapiers(value),
+          onLongPress: () => _copierDansPressePapiers(value),
+          child: contenu,
+        ),
+      ),
+    );
   }
 
   Widget _buildSection({
@@ -1042,7 +1233,7 @@ Future<void> _startNavigation({
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(children: [
         InkWell(
@@ -1053,7 +1244,7 @@ Future<void> _startNavigation({
             child: Row(children: [
               Container(
                 padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(9)),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(9)),
                 child: Icon(icon, size: 17, color: color),
               ),
               const SizedBox(width: 10),
@@ -1083,18 +1274,41 @@ Future<void> _startNavigation({
     );
   }
 
+  /// Copie [valeur] dans le presse-papiers avec retour haptique et visuel.
+  Future<void> _copierDansPressePapiers(String valeur) async {
+    await Clipboard.setData(ClipboardData(text: valeur));
+    await HapticFeedback.lightImpact();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Copié : $valeur')),
+          ]),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF2E7D32),
+        ),
+      );
+  }
+
   Widget _infoRow(IconData? icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Row(children: [
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (icon != null) ...[
           Icon(icon, size: 15, color: Colors.grey),
           const SizedBox(width: 8),
         ],
         Text('$label : ', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        // Les immatriculations et noms de bus sont longs : on les laisse
+        // passer à la ligne plutôt que de les tronquer par « … ».
         Expanded(child: Text(value,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
-            textAlign: TextAlign.right, overflow: TextOverflow.ellipsis)),
+            textAlign: TextAlign.right, softWrap: true)),
       ]),
     );
   }
@@ -1105,9 +1319,9 @@ Future<void> _startNavigation({
       margin: const EdgeInsets.only(top: 4),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.07),
+        color: Colors.red.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
@@ -1379,37 +1593,6 @@ Future<void> _startNavigation({
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              color: Colors.black87,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _formatDate(String dateString) {
     try {

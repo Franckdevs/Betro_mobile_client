@@ -3,14 +3,15 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/itineraire_model.dart';
 import '../../services/api_service.dart';
 import '../../core/widgets/shimmer_skeleton.dart';
+import '../../core/utils/logger.dart';
 
 class DetailGarePage extends StatefulWidget {
   final int gareId;
 
-  const DetailGarePage({Key? key, required this.gareId}) : super(key: key);
+  const DetailGarePage({super.key, required this.gareId});
 
   @override
-  _DetailGarePageState createState() => _DetailGarePageState();
+  State<DetailGarePage> createState() => _DetailGarePageState();
 }
 
 class _DetailGarePageState extends State<DetailGarePage> {
@@ -64,8 +65,8 @@ class _DetailGarePageState extends State<DetailGarePage> {
           final itineraires = snapshot.data!.itineraires;
 
           // Debug: Afficher les informations de la gare
-          print('Ville de la gare: ${gare.ville}');
-          print('Données complètes de la gare: $gare');
+          logDebug('Ville de la gare: ${gare.ville}');
+          logDebug('Données complètes de la gare: $gare');
 
           return CustomScrollView(
             slivers: [
@@ -100,7 +101,7 @@ class _DetailGarePageState extends State<DetailGarePage> {
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
+                                      color: Colors.black.withValues(alpha: 0.1),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     ),
@@ -230,7 +231,7 @@ class _DetailGarePageState extends State<DetailGarePage> {
                       style: TextStyle(color: Colors.grey[700]),
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),

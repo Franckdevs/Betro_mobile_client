@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constant/colors.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -14,18 +15,17 @@ class ParametrePage extends StatefulWidget {
   const ParametrePage({super.key});
 
   @override
-  _ParametrePageState createState() => _ParametrePageState();
+  State<ParametrePage> createState() => _ParametrePageState();
 }
 
 class _ParametrePageState extends State<ParametrePage> {
   final StorageService _storageService = StorageService();
   final LocationSharingService _locationSharing = LocationSharingService();
   Map<String, dynamic>? _userData;
-  bool _isLoading = false;
   List<Map<String, dynamic>> _trackHistory = [];
 
-  static const _amber = Color(0xFFFFC107);
-  static const _darkBlue = Color(0xFF1A237E);
+  static const _amber = AppColors.primaire;
+  static const _darkBlue = AppColors.secondaire;
   static const _appVersion = '1.0.0';
 
   @override
@@ -60,21 +60,21 @@ class _ParametrePageState extends State<ParametrePage> {
               } catch (_) {
                 _userData = userData;
               }
-            } else if (userData is Map) {
+            } else {
               try {
-                _userData = Map<String, dynamic>.from(
-                  userData.cast<String, dynamic>(),
-                );
-              } catch (_) {
-                _userData = userData;
-              }
+              _userData = Map<String, dynamic>.from(
+                userData.cast<String, dynamic>(),
+              );
+            } catch (_) {
+              _userData = userData;
             }
+            }
+
           }
-          _isLoading = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      // Rien à afficher : l'écran reste sur les données déjà en cache.
     }
   }
 
@@ -92,6 +92,10 @@ class _ParametrePageState extends State<ParametrePage> {
   Future<void> _showContactDialog() async {
     final apiService = ApiService();
     final token = await _storageService.getToken() ?? '';
+    if (!mounted) return;
+
+    // La requête est lancée une seule fois, hors de tout `build`.
+    final futureContacts = apiService.recupereNumeroTelephone(token: token);
 
     await showModalBottomSheet(
       context: context,
@@ -104,26 +108,16 @@ class _ParametrePageState extends State<ParametrePage> {
         maxHeight: MediaQuery.of(context).size.height * 0.65,
       ),
       builder: (_) {
-        bool loading = true;
-        String whatsapp = '';
-        String telephone = '';
-        String? error;
-
-        return StatefulBuilder(
-          builder: (ctx, ss) {
-            if (loading && whatsapp.isEmpty && error == null) {
-              apiService.recupereNumeroTelephone(token: token).then((data) {
-                ss(() {
-                  loading = false;
-                  if (data['success'] == true) {
-                    whatsapp = data['lien_whatsapp'] as String? ?? '';
-                    telephone = data['lien_telephone'] as String? ?? '';
-                  } else {
-                    error = 'Impossible de charger les numéros.';
-                  }
-                });
-              });
-            }
+        return FutureBuilder<Map<String, dynamic>>(
+          future: futureContacts,
+          builder: (ctx, snapshot) {
+            final loading = snapshot.connectionState != ConnectionState.done;
+            final data = snapshot.data;
+            final String? error = snapshot.hasError || (data != null && data['success'] != true)
+                ? 'Impossible de charger les numéros.'
+                : null;
+            final whatsapp = (data?['lien_whatsapp'] as String?) ?? '';
+            final telephone = (data?['lien_telephone'] as String?) ?? '';
 
             return SizedBox(
               width: double.infinity,
@@ -145,11 +139,11 @@ class _ParametrePageState extends State<ParametrePage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: AppColors.whatsapp.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.headset_mic_rounded,
-                        color: Colors.green, size: 32),
+                        color: AppColors.whatsapp, size: 32),
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -163,7 +157,7 @@ class _ParametrePageState extends State<ParametrePage> {
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.whatsapp),
                           strokeWidth: 2.5,
                         ),
                       ),
@@ -172,7 +166,7 @@ class _ParametrePageState extends State<ParametrePage> {
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(error!,
+                        child: Text(error,
                             style: const TextStyle(color: Colors.red, fontSize: 13),
                             textAlign: TextAlign.center),
                       ),
@@ -205,7 +199,7 @@ class _ParametrePageState extends State<ParametrePage> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF25D366),
+                            color: AppColors.whatsapp,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(
@@ -241,7 +235,7 @@ class _ParametrePageState extends State<ParametrePage> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           decoration: BoxDecoration(
-                            color: Colors.green,
+                            color: AppColors.appel,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(
@@ -428,7 +422,7 @@ class _ParametrePageState extends State<ParametrePage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withValues(alpha: 0.12),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -484,7 +478,7 @@ class _ParametrePageState extends State<ParametrePage> {
                             email,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.black87.withOpacity(0.6),
+                              color: Colors.black87.withValues(alpha: 0.6),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -494,7 +488,7 @@ class _ParametrePageState extends State<ParametrePage> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 3),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
@@ -518,89 +512,7 @@ class _ParametrePageState extends State<ParametrePage> {
     );
   }
 
-  // ── Info card ─────────────────────────────────────────────────────────────
-  Widget _buildInfoCard() {
-    final email = _userData?['email'] ?? 'Non défini';
-    final phone = _userData?['telephone']?.toString() ?? 'Non défini';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _infoTile(
-            icon: Icons.email_outlined,
-            iconColor: _amber,
-            label: 'Adresse email',
-            value: email,
-            isFirst: true,
-          ),
-          const Divider(height: 1, indent: 60),
-          _infoTile(
-            icon: Icons.phone_outlined,
-            iconColor: _amber,
-            label: 'Téléphone',
-            value: phone,
-            isLast: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoTile({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-    bool isFirst = false,
-    bool isLast = false,
-  }) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, isFirst ? 16 : 10, 16, isLast ? 16 : 10),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 18, color: iconColor),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style:
-                        TextStyle(fontSize: 11, color: Colors.grey[500])),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ── Section label ─────────────────────────────────────────────────────────
   Widget _sectionLabel(String text) {
@@ -626,7 +538,7 @@ class _ParametrePageState extends State<ParametrePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -647,30 +559,6 @@ class _ParametrePageState extends State<ParametrePage> {
                     builder: (_) => const EditProfilePage()),
               ).then((_) => _loadUserData());
             },
-          ),
-          const Divider(height: 1, indent: 60),
-          _menuTile(
-            icon: Icons.share_location_rounded,
-            iconColor: Colors.deepOrange,
-            title: 'Partager ma position',
-            subtitle: 'Partager votre position en temps réel',
-            onTap: _showShareLocationSheet,
-          ),
-          const Divider(height: 1, indent: 60),
-          _menuTile(
-            icon: Icons.location_searching_rounded,
-            iconColor: const Color(0xFF1565C0),
-            title: 'Suivre un trajet',
-            subtitle: 'Rejoindre un suivi en temps réel',
-            onTap: _showJoinTrackingDialog,
-          ),
-          const Divider(height: 1, indent: 60),
-          _menuTile(
-            icon: Icons.history_rounded,
-            iconColor: _darkBlue,
-            title: 'Historique de suivi',
-            subtitle: 'Codes de suivi utilisés récemment',
-            onTap: _showTrackHistorySheet,
           ),
           const Divider(height: 1, indent: 60),
           _menuTile(
@@ -708,7 +596,7 @@ class _ParametrePageState extends State<ParametrePage> {
             Container(
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.12),
+                color: iconColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, size: 18, color: iconColor),
@@ -745,7 +633,7 @@ class _ParametrePageState extends State<ParametrePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -934,7 +822,7 @@ class _ParametrePageState extends State<ParametrePage> {
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF1A237E).withOpacity(0.25),
+                            color: const Color(0xFF1A237E).withValues(alpha: 0.25),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -968,9 +856,9 @@ class _ParametrePageState extends State<ParametrePage> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1126,8 +1014,8 @@ class _ParametrePageState extends State<ParametrePage> {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: isActive
-                                    ? Colors.green.withOpacity(0.12)
-                                    : Colors.deepOrange.withOpacity(0.1),
+                                    ? Colors.green.withValues(alpha: 0.12)
+                                    : Colors.deepOrange.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
@@ -1387,7 +1275,7 @@ class _ParametrePageState extends State<ParametrePage> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: _darkBlue.withOpacity(0.1),
+                      color: _darkBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(Icons.history_rounded,
@@ -1496,7 +1384,7 @@ class _ParametrePageState extends State<ParametrePage> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: _amber.withOpacity(0.15),
+                                    color: _amber.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: const Icon(
@@ -1543,7 +1431,7 @@ class _ParametrePageState extends State<ParametrePage> {
                                 // Modifier
                                 _historyActionBtn(
                                   icon: Icons.edit_rounded,
-                                  color: _amber.withOpacity(0.12),
+                                  color: _amber.withValues(alpha: 0.12),
                                   iconColor: _amber,
                                   onTap: () async {
                                     final newCode = await _showEditCodeDialog(ctx, code);
@@ -1576,7 +1464,7 @@ class _ParametrePageState extends State<ParametrePage> {
                                 // Utiliser / Rejoindre
                                 _historyActionBtn(
                                   icon: Icons.play_arrow_rounded,
-                                  color: _darkBlue.withOpacity(0.1),
+                                  color: _darkBlue.withValues(alpha: 0.1),
                                   iconColor: _darkBlue,
                                   onTap: () {
                                     Navigator.pop(ctx);
@@ -1700,7 +1588,7 @@ class _ParametrePageState extends State<ParametrePage> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _amber.withOpacity(0.12),
+                        color: _amber.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.bug_report_rounded,
@@ -1749,6 +1637,9 @@ class _ParametrePageState extends State<ParametrePage> {
                           ? null
                           : () async {
                               if (controller.text.trim().isEmpty) return;
+                              // Capturé avant l'await : le contexte peut être
+                              // démonté pendant l'appel réseau.
+                              final messenger = ScaffoldMessenger.of(context);
                               ss(() => sending = true);
                               final token = await _storageService.getToken();
                               if (token == null) {
@@ -1761,7 +1652,7 @@ class _ParametrePageState extends State<ParametrePage> {
                               );
                               if (!ctx.mounted) return;
                               Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              messenger.showSnackBar(
                                 SnackBar(
                                   content: Text(result['success'] == true
                                       ? 'Merci ! Votre signalement a été envoyé.'
@@ -1867,7 +1758,7 @@ class _ParametrePageState extends State<ParametrePage> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: _amber.withOpacity(0.15),
+                              color: _amber.withValues(alpha: 0.15),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.help_outline_rounded,
@@ -1962,13 +1853,13 @@ class _ParametrePageState extends State<ParametrePage> {
                                               milliseconds: 200),
                                           decoration: BoxDecoration(
                                             color: isOpen
-                                                ? _amber.withOpacity(0.05)
+                                                ? _amber.withValues(alpha: 0.05)
                                                 : const Color(0xFFF8F8F8),
                                             borderRadius:
                                                 BorderRadius.circular(14),
                                             border: Border.all(
                                               color: isOpen
-                                                  ? _amber.withOpacity(0.4)
+                                                  ? _amber.withValues(alpha: 0.4)
                                                   : Colors.transparent,
                                             ),
                                           ),
@@ -1990,7 +1881,7 @@ class _ParametrePageState extends State<ParametrePage> {
                                                       height: 24,
                                                       decoration: BoxDecoration(
                                                         color: _amber
-                                                            .withOpacity(0.18),
+                                                            .withValues(alpha: 0.18),
                                                         shape: BoxShape.circle,
                                                       ),
                                                       child: Center(
@@ -2100,7 +1991,7 @@ class _ParametrePageState extends State<ParametrePage> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -2112,7 +2003,7 @@ class _ParametrePageState extends State<ParametrePage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.logout_rounded,

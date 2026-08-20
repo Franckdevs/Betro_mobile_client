@@ -185,7 +185,7 @@ class _EmailPageState extends State<Email>
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
+                                    color: Colors.black.withValues(alpha: 0.2),
                                     blurRadius: 16,
                                     offset: const Offset(0, 4),
                                   ),
@@ -224,7 +224,7 @@ class _EmailPageState extends State<Email>
                               key: ValueKey(_usePhone),
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.75),
+                                color: Colors.white.withValues(alpha: 0.75),
                                 fontSize: 13,
                                 height: 1.5,
                               ),
@@ -235,7 +235,7 @@ class _EmailPageState extends State<Email>
                           // ── Toggle Email / Téléphone ──────────────────
                           Container(
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.15),
+                              color: Colors.black.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(14),
                             ),
                             padding: const EdgeInsets.all(4),
@@ -283,9 +283,9 @@ class _EmailPageState extends State<Email>
                                 backgroundColor: Colors.amber,
                                 foregroundColor: Colors.black87,
                                 disabledBackgroundColor:
-                                    Colors.amber.withOpacity(0.5),
+                                    Colors.amber.withValues(alpha: 0.5),
                                 elevation: 4,
-                                shadowColor: Colors.amber.withOpacity(0.35),
+                                shadowColor: Colors.amber.withValues(alpha: 0.35),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -333,7 +333,7 @@ class _EmailPageState extends State<Email>
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
                                 side: BorderSide(
-                                    color: Colors.white.withOpacity(0.5)),
+                                    color: Colors.white.withValues(alpha: 0.5)),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -380,7 +380,7 @@ class _EmailPageState extends State<Email>
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: Colors.amber.withOpacity(0.3),
+                      color: Colors.amber.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     )

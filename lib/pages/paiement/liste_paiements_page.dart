@@ -5,17 +5,16 @@ import 'package:betro/services/paiement_service.dart';
 import 'detail_paiement_page.dart';
 
 class ListePaiementsPage extends StatefulWidget {
-  const ListePaiementsPage({Key? key}) : super(key: key);
+  const ListePaiementsPage({super.key});
 
   @override
-  _ListePaiementsPageState createState() => _ListePaiementsPageState();
+  State<ListePaiementsPage> createState() => _ListePaiementsPageState();
 }
 
 class _ListePaiementsPageState extends State<ListePaiementsPage>
     with SingleTickerProviderStateMixin {
   final PaiementService _paiementService = PaiementService();
   bool _isLoading = true;
-  bool _isRefreshing = false;
   String _errorMessage = '';
 
   // ── Filtre date ──
@@ -52,13 +51,11 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
   }
 
   Future<List<Map<String, dynamic>>> _loadPaiements() async {
-    setState(() => _isRefreshing = true);
     try {
       final paiements = await _paiementService.getPaiements();
       setState(() {
         _allPaiements = paiements;
         _isLoading = false;
-        _isRefreshing = false;
         _errorMessage = '';
       });
       return paiements;
@@ -67,7 +64,6 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
       if (msg.contains('Aucun paiement trouvé')) {
         setState(() {
           _isLoading = false;
-          _isRefreshing = false;
           _errorMessage = '';
           _allPaiements = [];
         });
@@ -75,7 +71,6 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
       } else {
         setState(() {
           _isLoading = false;
-          _isRefreshing = false;
           _errorMessage = msg.replaceAll('Exception: ', '');
         });
         return [];
@@ -103,56 +98,8 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
 
   void _clearFilter() => setState(() { _dateDebut = null; _dateFin = null; });
 
-  Future<void> _pickDate(bool isDebut) async {
-    final initial = isDebut ? (_dateDebut ?? DateTime.now()) : (_dateFin ?? DateTime.now());
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.light(primary: _amber, onPrimary: Colors.black87),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isDebut) _dateDebut = DateTime(picked.year, picked.month, picked.day);
-        else _dateFin = DateTime(picked.year, picked.month, picked.day);
-      });
-    }
-  }
 
-  // ── Formatters ────────────────────────────────────────────────────────────
-  String _formatMontant(dynamic montant) {
-    try {
-      if (montant == null) return '0 FCFA';
-      double valeur;
-      if (montant is String) valeur = double.tryParse(montant) ?? 0;
-      else if (montant is int) valeur = montant.toDouble();
-      else if (montant is double) valeur = montant;
-      else return '$montant FCFA';
-      return '${_montantFormat.format(valeur)} FCFA';
-    } catch (_) { return '$montant FCFA'; }
-  }
 
-  String _formatDate(String dateString) {
-    try {
-      if (dateString.isEmpty) return 'N/A';
-      final date = DateTime.parse(dateString);
-      final now = DateTime.now();
-      final diff = now.difference(date);
-      if (diff.inDays == 0) {
-        if (diff.inHours < 1) return 'Il y a ${diff.inMinutes} min';
-        if (diff.inHours < 24) return 'Aujourd\'hui à ${DateFormat.Hm('fr').format(date)}';
-      }
-      if (diff.inDays == 1) return 'Hier à ${DateFormat.Hm('fr').format(date)}';
-      if (diff.inDays < 7) return '${DateFormat.EEEE('fr').format(date)} à ${DateFormat.Hm('fr').format(date)}';
-      return DateFormat('dd/MM/yyyy à HH:mm', 'fr').format(date);
-    } catch (_) { return dateString; }
-  }
 
   String _formatShortDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
 
@@ -195,7 +142,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
               Container(
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.receipt_long_rounded, color: Colors.black87, size: 22),
@@ -209,7 +156,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: _hasFilter ? Colors.black87 : Colors.black.withOpacity(0.08),
+                    color: _hasFilter ? Colors.black87 : Colors.black.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -233,7 +180,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -279,7 +226,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
       {'label': 'Mois dernier', 'debut': DateTime(now.year, now.month - 1, 1), 'fin': DateTime(now.year, now.month, 0)},
     ];
 
-    bool _isShortcutActive(Map<String, dynamic> s, DateTime? d, DateTime? f) {
+    bool isShortcutActive(Map<String, dynamic> s, DateTime? d, DateTime? f) {
       if (d == null || f == null) return false;
       return d == s['debut'] && f == s['fin'];
     }
@@ -300,8 +247,11 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
             );
             if (picked != null) {
               setSheetState(() {
-                if (isDebut) tmpDebut = DateTime(picked.year, picked.month, picked.day);
-                else tmpFin = DateTime(picked.year, picked.month, picked.day);
+                if (isDebut) {
+                  tmpDebut = DateTime(picked.year, picked.month, picked.day);
+                } else {
+                  tmpFin = DateTime(picked.year, picked.month, picked.day);
+                }
               });
             }
           }
@@ -322,7 +272,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
               Row(children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: _amber.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: _amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                   child: const Icon(Icons.tune_rounded, color: _amber, size: 18),
                 ),
                 const SizedBox(width: 10),
@@ -335,7 +285,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.08),
+                        color: Colors.red.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text('Effacer',
@@ -353,7 +303,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
               ),
               const SizedBox(height: 8),
               Wrap(spacing: 8, runSpacing: 8, children: shortcuts.map((s) {
-                final active = _isShortcutActive(s, tmpDebut, tmpFin);
+                final active = isShortcutActive(s, tmpDebut, tmpFin);
                 return GestureDetector(
                   onTap: () => setSheetState(() {
                     tmpDebut = s['debut'] as DateTime;
@@ -391,7 +341,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
                     decoration: BoxDecoration(
-                      color: tmpDebut != null ? _amber.withOpacity(0.08) : const Color(0xFFF8F8F8),
+                      color: tmpDebut != null ? _amber.withValues(alpha: 0.08) : const Color(0xFFF8F8F8),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: tmpDebut != null ? _amber : const Color(0xFFE0E0E0)),
                     ),
@@ -428,7 +378,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
                     decoration: BoxDecoration(
-                      color: tmpFin != null ? _amber.withOpacity(0.08) : const Color(0xFFF8F8F8),
+                      color: tmpFin != null ? _amber.withValues(alpha: 0.08) : const Color(0xFFF8F8F8),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: tmpFin != null ? _amber : const Color(0xFFE0E0E0)),
                     ),
@@ -597,9 +547,13 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
     String formattedAmount = '0 F';
     try {
       double val = 0;
-      if (montant is String) val = double.tryParse(montant) ?? 0;
-      else if (montant is int) val = montant.toDouble();
-      else if (montant is double) val = montant;
+      if (montant is String) {
+        val = double.tryParse(montant) ?? 0;
+      } else if (montant is int) {
+        val = montant.toDouble();
+      } else if (montant is double) {
+        val = montant;
+      }
       formattedAmount = '${_montantFormat.format(val)} F';
     } catch (_) {}
 
@@ -608,7 +562,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: InkWell(
         onTap: () => Navigator.push(context, MaterialPageRoute(
@@ -646,7 +600,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text('Échoué',
@@ -657,7 +611,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text('En attente',
@@ -709,7 +663,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Container(
           padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(color: _amber.withOpacity(0.1), shape: BoxShape.circle),
+          decoration: BoxDecoration(color: _amber.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: const Icon(Icons.receipt_long_rounded, size: 60, color: _amber),
         ),
         const SizedBox(height: 20),
@@ -733,7 +687,7 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Container(
             padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(color: Colors.red.withOpacity(0.08), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), shape: BoxShape.circle),
             child: Icon(Icons.error_outline_rounded, size: 52, color: Colors.red[400]),
           ),
           const SizedBox(height: 16),

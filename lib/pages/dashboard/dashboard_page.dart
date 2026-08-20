@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'home_page.dart';
@@ -118,7 +117,7 @@ class _DashboardPageState extends State<Dashboard>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -166,7 +165,7 @@ class _DashboardPageState extends State<Dashboard>
                               height: isSelected ? 36 : 28,
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? _amber.withOpacity(0.15)
+                                    ? _amber.withValues(alpha: 0.15)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -228,7 +227,7 @@ class _DashboardPageState extends State<Dashboard>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
                     ),

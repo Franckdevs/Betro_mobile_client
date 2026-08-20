@@ -141,6 +141,92 @@ class SkeletonGareCard extends StatelessWidget {
   }
 }
 
+// Skeleton d'une carte voyage (résultats de recherche)
+class SkeletonVoyageCard extends StatelessWidget {
+  const SkeletonVoyageCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppShimmer(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(children: [
+          // Bandeau : disponibilité · prix
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFAFAFA),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+            ),
+            child: Row(children: const [
+              SkBox(width: 90, height: 20, radius: 6),
+              Spacer(),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                SkBox(width: 100, height: 15),
+                SizedBox(height: 5),
+                SkBox(width: 60, height: 9, radius: 5),
+              ]),
+            ]),
+          ),
+          // Itinéraire : départ ─ bus ─ arrivée
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(children: [
+              Row(children: const [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    SkBox(width: 10, height: 10, radius: 5),
+                    SizedBox(height: 6),
+                    SkBox(height: 14),
+                  ]),
+                ),
+                SizedBox(width: 12),
+                SkBox(width: 26, height: 26, radius: 8),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    SkBox(width: 10, height: 10, radius: 5),
+                    SizedBox(height: 6),
+                    SkBox(height: 14),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: const [
+                SkBox(width: 120, height: 11, radius: 6),
+                Spacer(),
+                SkBox(width: 80, height: 11, radius: 6),
+              ]),
+            ]),
+          ),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          // Pied : bus + bouton
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+            child: Row(children: const [
+              SkBox(width: 46, height: 36, radius: 8),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  SkBox(width: 130, height: 12),
+                  SizedBox(height: 5),
+                  SkBox(width: 90, height: 10, radius: 5),
+                ]),
+              ),
+              SizedBox(width: 10),
+              SkBox(width: 96, height: 34, radius: 10),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
 // Skeleton d'un siège (grille)
 class SkeletonSeat extends StatelessWidget {
   const SkeletonSeat({super.key});

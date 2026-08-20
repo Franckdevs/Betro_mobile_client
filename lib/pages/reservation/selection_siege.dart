@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constant/colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../services/api_service.dart';
@@ -72,10 +73,8 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
 
   // Bus configuration
   int _colonnes = 4;
-  int _rangees = 10;
-  int _placesCoteChauffeur = 3;
 
-  static const _amber = Color(0xFFFFC107);
+  static const _amber = AppColors.primaire;
 
   @override
   void initState() {
@@ -172,8 +171,6 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
             final config = data['data']?['configuration_place'];
             if (config != null) {
               _colonnes = _toInt(config['colonne'], 4);
-              _rangees = _toInt(config['ranger'], 10);
-              _placesCoteChauffeur = _toInt(config['places_cote_chauffeur'], 3);
             }
           });
         } else {
@@ -235,7 +232,6 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     _beneficiaryEmailController.clear();
     _isAssigning = false;
 
-    final storageService = StorageService();
 
     final shouldProceed = await showModalBottomSheet<bool>(
       context: context,
@@ -281,17 +277,8 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // ── Title ──────────────────────────────────────
-                            Row(children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: _amber.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.confirmation_number_outlined, size: 20, color: _amber),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
+                            const Row(children: [
+                              Text(
                                 'Confirmer la réservation',
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
@@ -304,7 +291,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: Colors.grey[200]!),
-                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
                               ),
                               child: Column(
                                 children: [
@@ -350,7 +337,9 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                                 children: [
                                                   const Icon(Icons.arrow_forward_rounded, color: _amber, size: 20),
                                                   if (widget.dureeVoyage != null)
-                                    Text(widget.dureeVoyage!, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                                                    Text(
+                                                        '${_formatDuree(widget.dureeVoyage!)} de trajet',
+                                                        style: TextStyle(fontSize: 9, color: Colors.grey[500])),
                                                 ],
                                               ),
                                             ),
@@ -377,10 +366,10 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                       spacing: 8,
                                       runSpacing: 6,
                                       children: [
-                                        _tripChip(Icons.calendar_today_rounded, _formatDate(widget.dateDepart), Colors.blueGrey),
-                                        _tripChip(Icons.event_seat_rounded, 'Siège $seatName', Colors.amber[800]!),
+                                        _tripChip(_formatDate(widget.dateDepart), Colors.blueGrey),
+                                        _tripChip('Siège $seatName', Colors.amber[800]!),
                                         if (widget.classe != null)
-                                          _tripChip(Icons.eco_rounded, widget.classe!, Colors.green[700]!),
+                                          _tripChip(widget.classe!, Colors.green[700]!),
                                       ],
                                     ),
                                   ),
@@ -397,8 +386,6 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.credit_card_rounded, color: Colors.white, size: 18),
-                                        const SizedBox(width: 8),
                                         const Text('Total à payer', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
                                         const Spacer(),
                                         Text(
@@ -436,14 +423,14 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(color: Colors.grey[200]!),
-                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
+                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
                                 ),
                                 child: Row(
                                   children: [
                                     Container(
                                       width: 44, height: 44,
                                       decoration: BoxDecoration(
-                                        color: _amber.withOpacity(0.2),
+                                        color: _amber.withValues(alpha: 0.2),
                                         shape: BoxShape.circle,
                                       ),
                                       child: Center(
@@ -669,14 +656,8 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.lock_rounded, size: 16),
-                                  SizedBox(width: 6),
-                                  Text('Confirmer et payer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                                ],
-                              ),
+                              child: const Text('Confirmer et payer',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                             ),
                           ),
                         ],
@@ -692,11 +673,13 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
 
     if (shouldProceed != true || !mounted) return;
 
+    // On capture les états (et non le BuildContext) avant tout await :
+    // le contexte peut être démonté pendant l'appel réseau.
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final navigatorCtx = context;
+    final navigator = Navigator.of(context);
 
     showDialog(
-      context: navigatorCtx,
+      context: context,
       barrierDismissible: false,
       barrierColor: Colors.black54,
       builder: (_) => const Center(
@@ -723,11 +706,10 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
       );
 
       if (!mounted) return;
-      Navigator.of(navigatorCtx).pop(); // close loader
+      navigator.pop(); // close loader
 
       if (response['success'] == true && response['url'] != null) {
-        Navigator.push(
-          navigatorCtx,
+        navigator.push(
           MaterialPageRoute(builder: (_) => PaiementWebViewPage(urlPaiement: response['url'])),
         );
       } else {
@@ -735,7 +717,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.of(navigatorCtx).pop(); // close loader
+      navigator.pop(); // close loader
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
       );
@@ -751,19 +733,15 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     return '${p.isNotEmpty ? p[0] : ''}${n.isNotEmpty ? n[0] : ''}'.toUpperCase();
   }
 
-  Widget _tripChip(IconData icon, String label, Color color) {
+  Widget _tripChip(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 5),
-        Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-      ]),
+      child: Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
     );
   }
 
@@ -838,6 +816,21 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
       buf.write(s[i]);
     }
     return buf.toString();
+  }
+
+  /// Durée de trajet renvoyée en "HH:mm[:ss]" par l'API → "6h59".
+  /// Évite de la confondre avec une heure d'horloge.
+  String _formatDuree(String duree) {
+    final parts = duree.split(':');
+    if (parts.length >= 2) {
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h != null && m != null) {
+        if (h == 0) return '${m}min';
+        return m == 0 ? '${h}h' : '${h}h${m.toString().padLeft(2, '0')}';
+      }
+    }
+    return duree;
   }
 
   String _formatDate(String dateStr) {
@@ -925,8 +918,8 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
           ),
           border: Border.all(color: borderColor, width: borderWidth),
           boxShadow: isSelected
-            ? [BoxShadow(color: _amber.withOpacity(0.4), spreadRadius: 1, blurRadius: 6, offset: const Offset(0, 2))]
-            : [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 3, offset: const Offset(0, 1))],
+            ? [BoxShadow(color: _amber.withValues(alpha: 0.4), spreadRadius: 1, blurRadius: 6, offset: const Offset(0, 2))]
+            : [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 3, offset: const Offset(0, 1))],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -939,7 +932,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
             ),
             Text(
               seatName,
-              style: TextStyle(color: numColor.withOpacity(0.75), fontSize: nameSz),
+              style: TextStyle(color: numColor.withValues(alpha: 0.75), fontSize: nameSz),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1005,7 +998,9 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     List<Widget> rows = [];
     final places = placesToShow ?? _placesDisponibles;
     final Map<int, dynamic> disponiblesMap = {};
-    for (var p in places) disponiblesMap[_toInt(p['numero'])] = p;
+    for (var p in places) {
+      disponiblesMap[_toInt(p['numero'])] = p;
+    }
     final Map<int, dynamic> occupeesMap = {};
     for (var p in _placesOccupees) {
       final num = _toInt(p['numero_place']);
@@ -1061,7 +1056,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
-          border: Border.all(color: color.withOpacity(0.6), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.6), width: 1),
         ),
       ),
       const SizedBox(width: 4),
@@ -1069,46 +1064,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     ]);
   }
 
-  Widget _buildSeatStats(int availableCount, int occupiedCount) {
-    final total = _placesDisponibles.length;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(children: [
-        _statCard(Icons.event_seat_rounded, '$total', 'Total', Colors.blueGrey),
-        const SizedBox(width: 8),
-        _statCard(Icons.check_circle_outline_rounded, '$availableCount', 'Disponible', Colors.green),
-        const SizedBox(width: 8),
-        _statCard(Icons.person_rounded, '$occupiedCount', 'Occupé', Colors.orange),
-      ]),
-    );
-  }
 
-  Widget _statCard(IconData icon, String value, String label, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 15, color: color),
-            const SizedBox(width: 6),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
-                Text(label, style: TextStyle(fontSize: 10, color: color.withOpacity(0.75))),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildBusLayout() {
     if (_isLoading) {
@@ -1149,7 +1105,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 3))],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1249,7 +1205,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.grey[200]!, width: 1.5),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 4))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
             ),
             child: Column(
               children: [
@@ -1295,21 +1251,25 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                           padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
                           child: Column(
                             children: [
-                              // Chauffeur row
+                              // Chauffeur row — centrée pour s'aligner avec la
+                              // grille des sièges juste en dessous.
                               if (placesProcheChauffeur.isNotEmpty) ...[
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildChauffeurSeat(seatW: seatW, seatH: seatH),
-                                    const SizedBox(width: 12),
-                                    Wrap(
-                                      children: placesProcheChauffeur.map((p) => _buildSeat(
-                                        p, p['nom'] ?? '?',
-                                        isProcheChauffeur: true,
-                                        seatW: seatW, seatH: seatH,
-                                      )).toList(),
-                                    ),
-                                  ],
+                                Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildChauffeurSeat(seatW: seatW, seatH: seatH),
+                                      const SizedBox(width: 12),
+                                      Wrap(
+                                        children: placesProcheChauffeur.map((p) => _buildSeat(
+                                          p, p['nom'] ?? '?',
+                                          isProcheChauffeur: true,
+                                          seatW: seatW, seatH: seatH,
+                                        )).toList(),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 Divider(color: Colors.grey[200], thickness: 1),
@@ -1367,9 +1327,9 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.1),
+        color: Colors.black.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withOpacity(0.15)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.15)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 14, color: Colors.black87),
@@ -1386,7 +1346,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey[200]!)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, -3))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, -3))],
       ),
       child: Row(
         children: [
@@ -1466,7 +1426,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                       IconButton(
                         icon: const Icon(Icons.chevron_left_rounded, color: Colors.black87, size: 24),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.3),
+                          backgroundColor: Colors.white.withValues(alpha: 0.3),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           padding: const EdgeInsets.all(6),
                         ),

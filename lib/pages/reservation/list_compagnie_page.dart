@@ -270,7 +270,7 @@ class _ListCompagniePageState extends State<ListCompagniePage>
                     icon: const Icon(Icons.arrow_back_ios_new_rounded,
                         color: Colors.black87, size: 20),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.black.withOpacity(0.08),
+                      backgroundColor: Colors.black.withValues(alpha: 0.08),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.all(8),
@@ -305,7 +305,7 @@ class _ListCompagniePageState extends State<ListCompagniePage>
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -342,161 +342,6 @@ class _ListCompagniePageState extends State<ListCompagniePage>
     );
   }
 
-  // ── Carte compagnie ───────────────────────────────────────────────────────
-  Widget _buildCompagnieCard(Compagnie compagnie) {
-    final hasLogo = compagnie.logoUrl != null && compagnie.logoUrl!.isNotEmpty;
-    final garesCount = compagnie.gares.length;
-    final initials = compagnie.nomComplet.isNotEmpty
-        ? compagnie.nomComplet.substring(0, compagnie.nomComplet.length > 2 ? 2 : 1).toUpperCase()
-        : '?';
-
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DetailCompagniePage(compagnie: compagnie),
-        ),
-      ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              // Logo / Avatar
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: hasLogo ? Colors.transparent : _amber.withOpacity(0.15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: hasLogo
-                    ? ClipOval(
-                        child: Image.network(
-                          compagnie.logoUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: Text(
-                              initials,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: _amber,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: _amber,
-                          ),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: 14),
-              // Infos
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      compagnie.nomComplet,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (compagnie.adresse.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_outlined,
-                              size: 12, color: Colors.grey[500]),
-                          const SizedBox(width: 3),
-                          Expanded(
-                            child: Text(
-                              compagnie.adresse,
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[500]),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    // Badges
-                    Row(
-                      children: [
-                        if (garesCount > 0)
-                          _badge(
-                            icon: Icons.store_mall_directory_outlined,
-                            label: '$garesCount gare${garesCount > 1 ? 's' : ''}',
-                            color: const Color(0xFF1A237E),
-                            bgColor: const Color(0xFFE8EAF6),
-                          ),
-                        if (garesCount > 0) const SizedBox(width: 6),
-                        _badge(
-                          icon: Icons.circle,
-                          label: compagnie.status == '1' ? 'Actif' : 'Inactif',
-                          color: compagnie.status == '1'
-                              ? Colors.green[700]!
-                              : Colors.grey,
-                          bgColor: compagnie.status == '1'
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.1),
-                          iconSize: 7,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Chevron
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _amber.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.chevron_right_rounded,
-                    color: _amber, size: 20),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // ── Tuile grille ──────────────────────────────────────────────────────────
   Widget _buildCompagnieTile(Compagnie compagnie) {
@@ -521,7 +366,7 @@ class _ListCompagniePageState extends State<ListCompagniePage>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -541,10 +386,10 @@ class _ListCompagniePageState extends State<ListCompagniePage>
                     shape: BoxShape.circle,
                     color: hasLogo
                         ? Colors.transparent
-                        : _amber.withOpacity(0.15),
+                        : _amber.withValues(alpha: 0.15),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -619,31 +464,6 @@ class _ListCompagniePageState extends State<ListCompagniePage>
     );
   }
 
-  Widget _badge({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color bgColor,
-    double iconSize = 12,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: iconSize, color: color),
-          const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
 
   // ── États vides / erreur ──────────────────────────────────────────────────
   Widget _buildEmpty() {
@@ -654,7 +474,7 @@ class _ListCompagniePageState extends State<ListCompagniePage>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: _amber.withOpacity(0.1),
+              color: _amber.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.business_outlined,

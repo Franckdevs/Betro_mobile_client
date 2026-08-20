@@ -204,7 +204,7 @@ class _LoginPageState extends State<LoginPage>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade800.withOpacity(0.9),
+                          color: Colors.red.shade800.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.red.shade300),
                         ),
@@ -252,7 +252,7 @@ class _LoginPageState extends State<LoginPage>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 16,
                               offset: const Offset(0, 4),
                             ),
@@ -291,7 +291,7 @@ class _LoginPageState extends State<LoginPage>
                     // ── Toggle Email / Téléphone ──────────────────────────
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       padding: const EdgeInsets.all(4),
@@ -384,10 +384,10 @@ class _LoginPageState extends State<LoginPage>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.15),
+                          color: Colors.red.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: Colors.redAccent.withOpacity(0.5)),
+                              color: Colors.redAccent.withValues(alpha: 0.5)),
                         ),
                         child: Row(
                           children: [
@@ -417,9 +417,9 @@ class _LoginPageState extends State<LoginPage>
                           backgroundColor: Colors.amber,
                           foregroundColor: Colors.black87,
                           disabledBackgroundColor:
-                              Colors.amber.withOpacity(0.5),
+                              Colors.amber.withValues(alpha: 0.5),
                           elevation: 4,
-                          shadowColor: Colors.amber.withOpacity(0.35),
+                          shadowColor: Colors.amber.withValues(alpha: 0.35),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -459,7 +459,7 @@ class _LoginPageState extends State<LoginPage>
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: BorderSide(
-                              color: Colors.white.withOpacity(0.5)),
+                              color: Colors.white.withValues(alpha: 0.5)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -577,7 +577,7 @@ class _LoginPageState extends State<LoginPage>
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: Colors.amber.withOpacity(0.3),
+                      color: Colors.amber.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     )

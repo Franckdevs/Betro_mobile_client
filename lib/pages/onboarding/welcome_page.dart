@@ -103,7 +103,7 @@ class Welcome extends StatelessWidget {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 20.0),
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [

@@ -7,14 +7,11 @@ import '../../core/widgets/shimmer_skeleton.dart';
 
 import '../../models/reservation_model.dart';
 import '../../services/api_service.dart';
-import '../../services/location_sharing_service.dart';
 import '../../services/storage_service.dart';
 import '../../core/utils/error_helper.dart';
 import '../reservation/list_compagnie_page.dart';
-import '../paiement/liste_paiements_page.dart';
 import 'reservation_list.dart';
 import 'notifications_page.dart';
-import 'track_location_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -32,7 +29,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List<Reservation> _reservations = [];
   List<String> _accueilImages = [];
   bool _isImageLoading = true;
-  String _userName = '';
 
   // ── Slider ──
   late final PageController _pageController;
@@ -44,10 +40,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   DateTime? _dateFin;
 
   // ── Filtre statut : 'all' | 'pending' | 'scanned' ──
-  String _statusFilter = 'all';
 
   // ── Historique de suivi ──
-  List<Map<String, dynamic>> _trackHistory = [];
 
   // ── Animations ──
   late final AnimationController _enterCtrl;
@@ -59,8 +53,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   static const _amber = Color(0xFFFFC107);
   static const _blue = Color(0xFF1565C0);
-  static const _green = Color(0xFF2E7D32);
-  static const _orange = Color(0xFFE65100);
 
   @override
   void initState() {
@@ -105,7 +97,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkUserAndLoadData();
-      _loadTrackHistory();
     });
   }
 
@@ -141,7 +132,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       }
 
       Future.microtask(_loadAccueilImage);
-      Future.microtask(_loadUserName);
       await _loadReservations();
     } catch (e) {
       if (mounted) {
@@ -176,21 +166,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _loadUserName() async {
-    final userData = await _storageService.getUserData();
-    if (userData == null || !mounted) return;
-    final prenom = userData['prenom']?.toString() ?? '';
-    final nom = userData['nom']?.toString() ?? '';
-    final full = '$prenom $nom'.trim();
-    setState(() => _userName = full.isNotEmpty ? full : userData['pseudo']?.toString() ?? '');
-  }
 
-  String get _initials {
-    final parts = _userName.trim().split(RegExp(r'\s+'));
-    if (_userName.isEmpty || parts.isEmpty) return 'U';
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-  }
 
   void _startSlider() {
     _sliderTimer?.cancel();
@@ -231,11 +207,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // ── Filtrage ──────────────────────────────────────────────────────────────
-  bool _isScanned(Reservation r) {
-    final s = r.status.toLowerCase();
-    return s.contains('scan') || s == 'valide' || s == 'utilisé';
-  }
 
   List<Reservation> get _filtered {
     var list = _reservations;
@@ -251,9 +222,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   bool get _hasDateFilter => _dateDebut != null || _dateFin != null;
-
-  int get _scannedCount => _reservations.where(_isScanned).length;
-  int get _pendingCount => _reservations.length - _scannedCount;
 
   String _fmt(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
 
@@ -286,10 +254,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             firstDate: DateTime(2020), lastDate: DateTime(2030),
             locale: const Locale('fr', 'FR'),
           );
-          if (p != null) ss(() {
-            if (isD) tmpD = DateTime(p.year, p.month, p.day);
-            else tmpF = DateTime(p.year, p.month, p.day);
+          if (p != null) {
+            ss(() {
+            if (isD) {
+              tmpD = DateTime(p.year, p.month, p.day);
+            } else {
+              tmpF = DateTime(p.year, p.month, p.day);
+            }
           });
+          }
         }
 
         return Container(
@@ -305,7 +278,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Row(children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: _amber.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: _amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                 child: const Icon(Icons.tune_rounded, color: _amber, size: 18),
               ),
               const SizedBox(width: 10),
@@ -318,7 +291,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+                        color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
                     child: const Text('Effacer',
                         style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w600)),
                   ),
@@ -392,7 +365,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
         decoration: BoxDecoration(
-          color: date != null ? _amber.withOpacity(0.08) : const Color(0xFFF8F8F8),
+          color: date != null ? _amber.withValues(alpha: 0.08) : const Color(0xFFF8F8F8),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: date != null ? _amber : const Color(0xFFE0E0E0)),
         ),
@@ -418,205 +391,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   // ── Historique & suivi ────────────────────────────────────────────────────
 
-  Future<void> _loadTrackHistory() async {
-    final history = await LocationSharingService.getTrackHistory();
-    if (mounted) setState(() => _trackHistory = history);
-  }
 
-  void _openTracking(String code) async {
-    await LocationSharingService.addToTrackHistory(code);
-    if (!mounted) return;
-    setState(() {});
-    await _loadTrackHistory();
-    if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => TrackLocationPage(code: code)),
-    );
-  }
 
-  // ── Rejoindre un suivi de position ────────────────────────────────────────
-  void _showJoinTrackingDialog() {
-    final ctrl = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) {
-          bool isLoading = false;
-          String? errorMsg;
-
-          return StatefulBuilder(
-            builder: (ctx2, setInner) {
-              final code = ctrl.text.trim().toUpperCase();
-              final isReady = code.length == 8 && !isLoading;
-
-              return Padding(
-                padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(ctx2).viewInsets.bottom),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(28)),
-                  ),
-                  padding: EdgeInsets.only(
-                    left: 24,
-                    right: 24,
-                    top: 20,
-                    bottom: MediaQuery.of(ctx2).padding.bottom + 28,
-                  ),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    // Handle
-                    Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    // Header
-                    Row(children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF8E1),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.location_searching_rounded,
-                            color: Color(0xFFFFC107), size: 26),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Rejoindre un suivi',
-                                style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1A237E))),
-                            Text(
-                              'Saisis le code reçu pour suivre en direct',
-                              style:
-                                  TextStyle(fontSize: 12, color: Colors.black45),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 24),
-                    // Champ code
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F6FA),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: errorMsg != null
-                              ? Colors.red
-                              : const Color(0xFFE0E0E0),
-                        ),
-                      ),
-                      child: TextField(
-                        controller: ctrl,
-                        textCapitalization: TextCapitalization.characters,
-                        maxLength: 8,
-                        textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
-                          hintText: 'EX : ABCD1234',
-                          counterText: '',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
-                          hintStyle: TextStyle(
-                              color: Colors.black26,
-                              fontSize: 22,
-                              letterSpacing: 4,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 5,
-                          color: Color(0xFF1A237E),
-                        ),
-                        onChanged: (_) => setInner(() { errorMsg = null; }),
-                      ),
-                    ),
-                    if (errorMsg != null) ...[
-                      const SizedBox(height: 8),
-                      Row(children: [
-                        const Icon(Icons.error_outline_rounded,
-                            color: Colors.red, size: 16),
-                        const SizedBox(width: 6),
-                        Text(errorMsg!,
-                            style: const TextStyle(
-                                color: Colors.red, fontSize: 13)),
-                      ]),
-                    ],
-                    const SizedBox(height: 20),
-                    // Bouton Suivre
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: isReady
-                            ? () async {
-                                setInner(() { isLoading = true; errorMsg = null; });
-                                final exists = await LocationSharingService.codeExists(code);
-                                if (!exists) {
-                                  setInner(() {
-                                    isLoading = false;
-                                    errorMsg = 'Code introuvable. Vérifie et réessaie.';
-                                  });
-                                  return;
-                                }
-                                if (ctx2.mounted) Navigator.pop(ctx2);
-                                _openTracking(code);
-                              }
-                            : null,
-                        icon: isLoading
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white)),
-                              )
-                            : const Icon(Icons.location_on_rounded, size: 20),
-                        label: const Text('Suivre la position',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              isReady ? const Color(0xFF1565C0) : Colors.grey[300],
-                          foregroundColor:
-                              isReady ? Colors.white : Colors.black45,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextButton(
-                      onPressed: isLoading ? null : () => Navigator.pop(ctx2),
-                      child: const Text('Annuler',
-                          style: TextStyle(color: Colors.black45)),
-                    ),
-                  ]),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
 
   // ── BUILD ─────────────────────────────────────────────────────────────────
   @override
@@ -720,7 +496,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: _hasDateFilter ? Colors.black87 : Colors.black.withOpacity(0.08),
+                    color: _hasDateFilter ? Colors.black87 : Colors.black.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -742,7 +518,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                      color: Colors.black.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     const Icon(Icons.date_range_rounded, size: 12, color: Colors.black87),
                     const SizedBox(width: 5),
@@ -763,42 +539,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
             const SizedBox(height: 12),
             // Search / CTA bar
-            GestureDetector(
+            _AnimatedSearchBar(
               onTap: () => Navigator.push(
                   context, MaterialPageRoute(builder: (_) => const ListCompagniePage())),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2)),
-                  ],
-                ),
-                child: Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                        color: _amber.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.search_rounded, color: Colors.black54, size: 18),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Où allez-vous ?',
-                          style: TextStyle(fontSize: 11, color: Colors.black45)),
-                      const Text('Rechercher un voyage',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                    ]),
-                  ),
-                  const Icon(Icons.arrow_forward_rounded, color: Colors.black38, size: 18),
-                ]),
-              ),
             ),
           ]),
         ),
@@ -842,7 +585,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   decoration: BoxDecoration(
                                     color: active
                                         ? Colors.white
-                                        : Colors.white.withOpacity(0.45),
+                                        : Colors.white.withValues(alpha: 0.45),
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                 );
@@ -874,7 +617,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.centerRight, end: Alignment.centerLeft,
-              colors: [Colors.transparent, Colors.black.withOpacity(0.55)],
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
             ),
           ),
         ),
@@ -884,7 +627,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Container(
           width: 110, height: 110,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12), shape: BoxShape.circle),
+            color: Colors.white.withValues(alpha: 0.12), shape: BoxShape.circle),
         ),
       ),
       Positioned(
@@ -892,7 +635,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Container(
           width: 150, height: 150,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.07), shape: BoxShape.circle),
+            color: Colors.white.withValues(alpha: 0.07), shape: BoxShape.circle),
         ),
       ),
       // Contenu texte : uniquement sur le slide dégradé (sans image)
@@ -907,7 +650,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.14),
+                  color: Colors.black.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text('Promo',
@@ -966,129 +709,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // ── Quick actions ─────────────────────────────────────────────────────────
-  Widget _buildQuickActions() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Row(children: [
-        _quickActionItem(
-          Iconsax.bus, 'Voyages',
-          const Color(0xFFFFF8E1), _amber,
-          onTap: () => Navigator.push(
-              context, MaterialPageRoute(builder: (_) => const ListCompagniePage())),
-        ),
-        _quickActionItem(
-          Iconsax.map_1, 'Suivi live',
-          const Color(0xFFE3F2FD), const Color(0xFF1565C0),
-          onTap: _showJoinTrackingDialog,
-        ),
-        _quickActionItem(
-          Iconsax.wallet_1, 'Paiements',
-          const Color(0xFFE8F5E9), const Color(0xFF2E7D32),
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ListePaiementsPage())),
-        ),
-      ]),
-    );
-  }
 
-  Widget _quickActionItem(
-    IconData icon,
-    String label,
-    Color bg,
-    Color iconColor, {
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          const SizedBox(height: 6),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w500, color: Colors.black87)),
-        ]),
-      ),
-    );
-  }
 
-  // ── Onglets statut ────────────────────────────────────────────────────────
-  Widget _buildStatusTabs() {
-    final tabs = [
-      {'key': 'all',     'label': 'Tous',       'count': _reservations.length, 'icon': Iconsax.ticket,  'color': _blue},
-      {'key': 'pending', 'label': 'En attente', 'count': _pendingCount,        'icon': Iconsax.clock,   'color': _orange},
-      {'key': 'scanned', 'label': 'Scanné',     'count': _scannedCount,        'icon': Iconsax.scan,    'color': _green},
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: Row(
-        children: tabs.asMap().entries.map((e) {
-          final tab = e.value;
-          final key = tab['key'] as String;
-          final isActive = _statusFilter == key;
-          final color = tab['color'] as Color;
-          final isLast = e.key == tabs.length - 1;
-
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(right: isLast ? 0 : 8),
-              child: GestureDetector(
-                onTap: () => setState(() => _statusFilter = key),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isActive ? color : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: isActive ? color : Colors.grey.shade200, width: 1.5),
-                    boxShadow: isActive
-                        ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))]
-                        : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4)],
-                  ),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(tab['icon'] as IconData,
-                        size: 18, color: isActive ? Colors.white : color),
-                    const SizedBox(height: 5),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, anim) =>
-                          ScaleTransition(scale: anim, child: child),
-                      child: Text(
-                        '${tab['count']}',
-                        key: ValueKey('${key}_${tab['count']}'),
-                        style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold,
-                          color: isActive ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(tab['label'] as String,
-                        style: TextStyle(
-                          fontSize: 10, fontWeight: FontWeight.w500,
-                          color: isActive ? Colors.white.withOpacity(0.9) : Colors.grey[600],
-                        )),
-                  ]),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
 
   // ── En-tête liste ─────────────────────────────────────────────────────────
   Widget _buildListHeader() {
@@ -1146,7 +768,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Container(
           padding: const EdgeInsets.all(18),
           decoration:
-              BoxDecoration(color: Colors.red.withOpacity(0.07), shape: BoxShape.circle),
+              BoxDecoration(color: Colors.red.withValues(alpha: 0.07), shape: BoxShape.circle),
           child: const Icon(Icons.wifi_off_rounded, size: 46, color: Colors.red),
         ),
         const SizedBox(height: 16),
@@ -1178,7 +800,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Container(
           padding: const EdgeInsets.all(18),
           decoration:
-              BoxDecoration(color: _amber.withOpacity(0.1), shape: BoxShape.circle),
+              BoxDecoration(color: _amber.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: const Icon(Iconsax.calendar_remove, size: 46, color: _amber),
         ),
         const SizedBox(height: 16),
@@ -1209,3 +831,167 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 }
 
+
+// ── Barre de recherche animée ───────────────────────────────────────────────
+class _AnimatedSearchBar extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _AnimatedSearchBar({required this.onTap});
+
+  @override
+  State<_AnimatedSearchBar> createState() => _AnimatedSearchBarState();
+}
+
+class _AnimatedSearchBarState extends State<_AnimatedSearchBar>
+    with SingleTickerProviderStateMixin {
+  static const _amber = Color(0xFFFFC107);
+  static const _hints = [
+    'Où allez-vous ?',
+    'Comparez les compagnies',
+    'Réservez en 2 minutes',
+  ];
+
+  late final AnimationController _loopCtrl;
+  Timer? _hintTimer;
+  int _hintIndex = 0;
+  bool _pressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Va-et-vient permanent de la flèche
+    _loopCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+
+    _hintTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) return;
+      setState(() => _hintIndex = (_hintIndex + 1) % _hints.length);
+    });
+  }
+
+  @override
+  void dispose() {
+    _hintTimer?.cancel();
+    _loopCtrl.dispose();
+    super.dispose();
+  }
+
+  void _setPressed(bool v) {
+    if (_pressed != v) setState(() => _pressed = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
+    return Semantics(
+      button: true,
+      label: 'Rechercher un voyage',
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: _pressed ? 0.04 : 0.10),
+                blurRadius: _pressed ? 6 : 14,
+                offset: Offset(0, _pressed ? 1 : 5),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: widget.onTap,
+              onTapDown: (_) => _setPressed(true),
+              onTapUp: (_) => _setPressed(false),
+              onTapCancel: () => _setPressed(false),
+              splashColor: _amber.withValues(alpha: 0.22),
+              highlightColor: _amber.withValues(alpha: 0.08),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                child: Row(children: [
+                  // Pastille loupe
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_amber, _amber.withValues(alpha: 0.75)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.search_rounded, color: Colors.white, size: 19),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Accroche qui défile
+                        SizedBox(
+                          height: 15,
+                          child: AnimatedSwitcher(
+                            duration: Duration(milliseconds: reduceMotion ? 0 : 400),
+                            transitionBuilder: (child, anim) => FadeTransition(
+                              opacity: anim,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, 0.6),
+                                  end: Offset.zero,
+                                ).animate(anim),
+                                child: child,
+                              ),
+                            ),
+                            child: Text(
+                              _hints[_hintIndex],
+                              key: ValueKey(_hintIndex),
+                              style: const TextStyle(fontSize: 11, color: Colors.black45),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        const Text('Rechercher un voyage',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Flèche dans sa pastille, avec petit va-et-vient
+                  AnimatedBuilder(
+                    animation: _loopCtrl,
+                    builder: (context, child) => Transform.translate(
+                      offset: Offset(reduceMotion ? 0 : 3 * _loopCtrl.value, 0),
+                      child: child,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: _amber.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_forward_rounded,
+                          color: Colors.black87, size: 16),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

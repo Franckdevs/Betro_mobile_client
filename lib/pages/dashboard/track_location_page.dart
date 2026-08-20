@@ -11,7 +11,7 @@ import '../../services/location_sharing_service.dart';
 class TrackLocationPage extends StatefulWidget {
   final String code;
 
-  const TrackLocationPage({Key? key, required this.code}) : super(key: key);
+  const TrackLocationPage({super.key, required this.code});
 
   @override
   State<TrackLocationPage> createState() => _TrackLocationPageState();
@@ -132,7 +132,7 @@ class _TrackLocationPageState extends State<TrackLocationPage> {
           position: me,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           infoWindow: const InfoWindow(title: 'Ma position'),
-          zIndex: 2,
+          zIndexInt: 2,
         ));
         _updateDistanceAndPolyline();
       });
@@ -342,7 +342,7 @@ class _TrackLocationPageState extends State<TrackLocationPage> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 16,
               offset: const Offset(0, -4)),
         ],
@@ -443,7 +443,7 @@ class _TrackLocationPageState extends State<TrackLocationPage> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-                color: color.withOpacity(0.35),
+                color: color.withValues(alpha: 0.35),
                 blurRadius: 8,
                 offset: const Offset(0, 3)),
           ],

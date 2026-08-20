@@ -37,17 +37,22 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keyProperties["keyAlias"] as String
-            keyPassword = keyProperties["keyPassword"] as String
-            storeFile = keyProperties["storeFile"]?.let { file(it) }
-            storePassword = keyProperties["storePassword"] as String
+        // key.properties is not committed, so it is absent on fresh clones and CI
+        // without secrets. Only declare the release config when it is available.
+        if (keyPropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keyProperties["keyAlias"] as String
+                keyPassword = keyProperties["keyPassword"] as String
+                storeFile = keyProperties["storeFile"]?.let { file(it) }
+                storePassword = keyProperties["storePassword"] as String
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
             isMinifyEnabled = false
             isShrinkResources = false
         }

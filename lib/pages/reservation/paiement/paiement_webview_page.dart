@@ -68,10 +68,12 @@ class _PaiementWebViewPageState extends State<PaiementWebViewPage> {
             if (mounted) setState(() => _progress = progress / 100);
           },
           onPageFinished: (url) {
-            if (mounted) setState(() {
+            if (mounted) {
+              setState(() {
               _isLoading = false;
               _progress = 1.0;
             });
+            }
           },
           onWebResourceError: (error) {
             debugPrint('Erreur webview: ${error.description}');
@@ -160,7 +162,7 @@ class _PaiementWebViewPageState extends State<PaiementWebViewPage> {
                           Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(

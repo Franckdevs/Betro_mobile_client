@@ -10,7 +10,7 @@ class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
 
   @override
-  _EditProfilePageState createState() => _EditProfilePageState();
+  State<EditProfilePage> createState() => _EditProfilePageState();
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
@@ -422,7 +422,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     backgroundColor: _amber,
                     foregroundColor: Colors.black87,
                     elevation: 4,
-                    shadowColor: _amber.withOpacity(0.4),
+                    shadowColor: _amber.withValues(alpha: 0.4),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                 ),
@@ -493,7 +493,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     icon: const Icon(Icons.arrow_back_ios_new_rounded,
                         color: Colors.black87, size: 20),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.black.withOpacity(0.08),
+                      backgroundColor: Colors.black.withValues(alpha: 0.08),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
@@ -525,7 +525,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.12),
+                                color: Colors.black.withValues(alpha: 0.12),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -614,7 +614,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           _emailController.text,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black87.withOpacity(0.6),
+                            color: Colors.black87.withValues(alpha: 0.6),
                           ),
                         ),
                       const SizedBox(height: 4),
@@ -624,7 +624,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           'Changer la photo',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black87.withOpacity(0.7),
+                            color: Colors.black87.withValues(alpha: 0.7),
                             fontWeight: FontWeight.w600,
                             decoration: TextDecoration.underline,
                           ),
@@ -653,7 +653,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -668,7 +668,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _amber.withOpacity(0.15),
+                  color: _amber.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 18, color: _amber),
@@ -754,7 +754,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -779,8 +779,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: _showPasswordFields
-                          ? Colors.orange.withOpacity(0.15)
-                          : _amber.withOpacity(0.15),
+                          ? Colors.orange.withValues(alpha: 0.15)
+                          : _amber.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(

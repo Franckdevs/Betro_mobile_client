@@ -10,6 +10,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/utils/logger.dart';
+
 import '../../models/gare1_model.dart';
 
 class GareMapPage extends StatefulWidget {
@@ -19,12 +21,12 @@ class GareMapPage extends StatefulWidget {
   final String title;
 
   const GareMapPage({
-    Key? key,
+    super.key,
     required this.gare,
     required this.title,
     this.gareDepart,
     this.gareArrive,
-  }) : super(key: key);
+  });
 
   factory GareMapPage.itinerary({
     Key? key,
@@ -129,44 +131,60 @@ class _GareMapPageState extends State<GareMapPage>
   }
 
   Future<void> _loadPersonMarker() async {
-    const double s = 80;
+    // Taille visée à l'écran, en pixels logiques (avant : ~80 px bruts = énorme)
+    const double logicalSize = 32;
+    // Espace de dessin normalisé : les coordonnées ci-dessous restent en base 80
+    const double base = 80;
+
+    final dpr = WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+    final int pixelSize = (logicalSize * dpr).round();
+
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    // Shadow
+    canvas.scale(pixelSize / base); // dessin net quelle que soit la densité
+
+    const c = Offset(base / 2, base / 2);
+    const r = base / 2 - 6;
+
+    // Ombre portée
     canvas.drawCircle(
-      const Offset(s / 2, s / 2 + 3),
-      s / 2 - 5,
+      const Offset(base / 2, base / 2 + 3),
+      r,
       Paint()
-        ..color = Colors.black.withOpacity(0.22)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        ..color = Colors.black.withValues(alpha: 0.25)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
     );
-    // Blue circle background
+    // Disque bleu
+    canvas.drawCircle(c, r, Paint()..color = const Color(0xFF1565C0));
+    // Liseré blanc
     canvas.drawCircle(
-        const Offset(s / 2, s / 2), s / 2 - 5, Paint()..color = const Color(0xFF1565C0));
-    // White border
-    canvas.drawCircle(
-      const Offset(s / 2, s / 2),
-      s / 2 - 5,
+      c,
+      r,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4,
+        ..strokeWidth = 5,
     );
-    // Head
-    canvas.drawCircle(const Offset(s / 2, s / 2 - 13), 11, Paint()..color = Colors.white);
-    // Body (half-circle shape)
+    // Silhouette : tête + buste
+    canvas.drawCircle(const Offset(base / 2, base / 2 - 12), 10, Paint()..color = Colors.white);
     final body = Path()
-      ..moveTo(12, s - 8)
-      ..quadraticBezierTo(12, s / 2 + 6, s / 2, s / 2 + 6)
-      ..quadraticBezierTo(s - 12, s / 2 + 6, s - 12, s - 8);
+      ..moveTo(15, base - 12)
+      ..quadraticBezierTo(15, base / 2 + 7, base / 2, base / 2 + 7)
+      ..quadraticBezierTo(base - 15, base / 2 + 7, base - 15, base - 12);
     canvas.drawPath(body, Paint()..color = Colors.white);
 
     final picture = recorder.endRecording();
-    final img = await picture.toImage(s.toInt(), s.toInt());
+    final img = await picture.toImage(pixelSize, pixelSize);
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    picture.dispose();
+    img.dispose();
     if (mounted && bytes != null) {
       setState(() {
-        _personMarkerIcon = BitmapDescriptor.bytes(bytes.buffer.asUint8List());
+        // imagePixelRatio = dpr → affiché à logicalSize px logiques
+        _personMarkerIcon = BitmapDescriptor.bytes(
+          bytes.buffer.asUint8List(),
+          imagePixelRatio: dpr,
+        );
       });
     }
   }
@@ -210,7 +228,7 @@ class _GareMapPageState extends State<GareMapPage>
                   color: const Color(0xFF2196F3), width: 7,
                   startCap: Cap.roundCap, endCap: Cap.roundCap, jointType: JointType.round, zIndex: 2),
               Polyline(polylineId: const PolylineId('route_shine'), points: allPoints,
-                  color: Colors.white.withOpacity(0.35), width: 2,
+                  color: Colors.white.withValues(alpha: 0.35), width: 2,
                   startCap: Cap.roundCap, endCap: Cap.roundCap, jointType: JointType.round, zIndex: 3),
             };
           });
@@ -219,11 +237,12 @@ class _GareMapPageState extends State<GareMapPage>
             _fitBoundsForRoute(allPoints);
           }
         } else {
-          setState(() => _routeError = 'Itinéraire indisponible');
+          setState(() => _routeError = _messageErreurItineraire(
+              data['status'] as String?, data['error_message'] as String?));
         }
       }
     } on Exception catch (e) {
-      debugPrint('_fetchRouteFromMe error: $e');
+      logDebug('_fetchRouteFromMe error: $e');
     } finally {
       if (mounted) setState(() => _isLoadingRoute = false);
     }
@@ -267,7 +286,7 @@ class _GareMapPageState extends State<GareMapPage>
         }
       }
     } on Exception catch (e) {
-      debugPrint('_fetchRouteToDepart error: $e');
+      logDebug('_fetchRouteToDepart error: $e');
     } finally {
       if (mounted) setState(() => _isLoadingPreRoute = false);
     }
@@ -345,7 +364,9 @@ class _GareMapPageState extends State<GareMapPage>
             position: me,
             infoWindow: const InfoWindow(title: 'Ma position'),
             icon: _personMarkerIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-            zIndex: 10,
+            // Pastille ronde : centrée sur la position réelle, pas posée dessus
+            anchor: _personMarkerIcon != null ? const Offset(0.5, 0.5) : const Offset(0.5, 1.0),
+            zIndexInt: 10,
           );
         });
 
@@ -457,13 +478,14 @@ class _GareMapPageState extends State<GareMapPage>
                   color: const Color(0xFF2196F3), width: 7,
                   startCap: Cap.roundCap, endCap: Cap.roundCap, jointType: JointType.round, zIndex: 2),
               Polyline(polylineId: const PolylineId('route_shine'), points: allPoints,
-                  color: Colors.white.withOpacity(0.35), width: 2,
+                  color: Colors.white.withValues(alpha: 0.35), width: 2,
                   startCap: Cap.roundCap, endCap: Cap.roundCap, jointType: JointType.round, zIndex: 3),
             };
           });
           _fitBoundsForRoute(allPoints);
         } else {
-          setState(() => _routeError = 'Itinéraire indisponible (${data['status']})');
+          setState(() => _routeError = _messageErreurItineraire(
+              data['status'] as String?, data['error_message'] as String?));
           _fallbackLine();
         }
       } else {
@@ -471,7 +493,7 @@ class _GareMapPageState extends State<GareMapPage>
         _fallbackLine();
       }
     } on Exception catch (e) {
-      debugPrint('_fetchRoute error: $e');
+      logDebug('_fetchRoute error: $e');
       setState(() => _routeError = 'Erreur de connexion');
       _fallbackLine();
     } finally {
@@ -500,8 +522,43 @@ class _GareMapPageState extends State<GareMapPage>
     ));
   }
 
+  /// Distance orthodromique entre deux points, en kilomètres.
+  double _distanceVolOiseauKm(LatLng a, LatLng b) {
+    const rayonTerreKm = 6371.0;
+    double rad(double d) => d * pi / 180;
+    final dLat = rad(b.latitude - a.latitude);
+    final dLng = rad(b.longitude - a.longitude);
+    final h = sin(dLat / 2) * sin(dLat / 2) +
+        cos(rad(a.latitude)) * cos(rad(b.latitude)) * sin(dLng / 2) * sin(dLng / 2);
+    return rayonTerreKm * 2 * atan2(sqrt(h), sqrt(1 - h));
+  }
+
+  /// Traduit un statut de l'API Directions en message affichable.
+  ///
+  /// Retourne `null` quand il n'y a rien d'utile à dire au voyageur : la carte
+  /// montre déjà le tracé direct et la distance approximative. Le détail
+  /// technique part dans les logs, pas à l'écran.
+  String? _messageErreurItineraire(String? statut, String? detailGoogle) {
+    logDebug('[Directions] statut=$statut detail=$detailGoogle');
+    switch (statut) {
+      case 'ZERO_RESULTS':
+        return 'Aucune route trouvée entre ces deux gares.';
+      case 'OVER_QUERY_LIMIT':
+        return 'Service d\'itinéraire momentanément saturé. Réessayez dans un instant.';
+      case 'NOT_FOUND':
+        return 'Une des deux gares est introuvable sur la carte.';
+      default:
+        return null;
+    }
+  }
+
   void _fallbackLine() {
+    final km = _distanceVolOiseauKm(_gareDepartLocation, _gareArriveLocation);
     setState(() {
+      // Mieux qu'un panneau vide : on donne au moins l'ordre de grandeur,
+      // explicitement étiqueté pour ne pas le confondre avec la distance routière.
+      _distance = '~${km.toStringAsFixed(0)} km';
+      _duration = null;
       _routePolylines = {
         Polyline(
           polylineId: const PolylineId('route_fallback'),
@@ -655,7 +712,7 @@ class _GareMapPageState extends State<GareMapPage>
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -704,7 +761,7 @@ class _GareMapPageState extends State<GareMapPage>
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 16, offset: const Offset(0, -4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 16, offset: const Offset(0, -4)),
         ],
       ),
       child: _isItineraryMode ? _itineraryButtons() : _singleGareButtons(),
@@ -754,7 +811,7 @@ class _GareMapPageState extends State<GareMapPage>
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.gps_fixed_rounded, color: Colors.white, size: 16),
@@ -831,7 +888,7 @@ class _GareMapPageState extends State<GareMapPage>
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.gps_fixed_rounded, color: Colors.white, size: 16),
@@ -887,7 +944,7 @@ class _GareMapPageState extends State<GareMapPage>
             width: 1.5,
           ),
           boxShadow: _isTracking
-              ? [BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 10, spreadRadius: 1)]
+              ? [BoxShadow(color: Colors.green.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 1)]
               : [],
         ),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -928,7 +985,7 @@ class _GareMapPageState extends State<GareMapPage>
           color: color,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: color.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(children: [
@@ -938,7 +995,7 @@ class _GareMapPageState extends State<GareMapPage>
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
               Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
               Text(sublabel,
-                  style: TextStyle(color: textColor.withOpacity(0.75), fontSize: 10),
+                  style: TextStyle(color: textColor.withValues(alpha: 0.75), fontSize: 10),
                   overflow: TextOverflow.ellipsis, maxLines: 1),
             ]),
           ),
@@ -961,7 +1018,7 @@ class _GareMapPageState extends State<GareMapPage>
                     snippet: widget.gareDepart!.ville?.nomVille ?? '',
                   ),
                   icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-                  zIndex: 5,
+                  zIndexInt: 5,
                 ),
                 Marker(
                   markerId: MarkerId('gare_arrive_${widget.gareArrive!.id}'),
@@ -971,7 +1028,7 @@ class _GareMapPageState extends State<GareMapPage>
                     snippet: widget.gareArrive!.ville?.nomVille ?? '',
                   ),
                   icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-                  zIndex: 5,
+                  zIndexInt: 5,
                 ),
               }
             : {
@@ -1005,14 +1062,14 @@ class _GareMapPageState extends State<GareMapPage>
         // Loader
         if (_isLoadingRoute)
           Container(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 20)],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 20)],
                 ),
                 child: const Column(mainAxisSize: MainAxisSize.min, children: [
                   CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFC107))),
@@ -1034,16 +1091,19 @@ class _GareMapPageState extends State<GareMapPage>
             left: 12, right: 12,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              // Ambre et non rouge : la carte reste utilisable, avec un tracé
+              // direct et une distance approximative. C'est une dégradation,
+              // pas un échec.
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                border: Border.all(color: Colors.red.shade200),
+                color: const Color(0xFFFFF8E1),
+                border: Border.all(color: const Color(0xFFFFC107)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.red.shade600, size: 18),
+                const Icon(Icons.info_outline_rounded, color: Color(0xFF8D6E00), size: 18),
                 const SizedBox(width: 8),
                 Expanded(child: Text(_routeError!,
-                    style: TextStyle(color: Colors.red.shade700, fontSize: 13))),
+                    style: const TextStyle(color: Color(0xFF6D5200), fontSize: 13, height: 1.3))),
               ]),
             ),
           ),
@@ -1085,7 +1145,7 @@ class _GareMapPageState extends State<GareMapPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
@@ -1094,19 +1154,22 @@ class _GareMapPageState extends State<GareMapPage>
             const SizedBox(height: 5),
             _routeLabel(color: Colors.red, icon: Icons.location_on_rounded, text: widget.gareArrive!.nomGare),
           ])),
-          if (_distance != null && _duration != null) ...[
+          if (_distance != null) ...[
             Container(width: 1, height: 40, color: Colors.grey[200], margin: const EdgeInsets.symmetric(horizontal: 14)),
             Column(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.straighten_rounded, color: Color(0xFF1E88E5), size: 16),
               const SizedBox(height: 2),
               Text(_distance!, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
             ]),
-            const SizedBox(width: 14),
-            Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.access_time_rounded, color: Color(0xFFF57C00), size: 16),
-              const SizedBox(height: 2),
-              Text(_duration!, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            ]),
+            // La durée n'existe que si Google a renvoyé un vrai itinéraire.
+            if (_duration != null) ...[
+              const SizedBox(width: 14),
+              Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.access_time_rounded, color: Color(0xFFF57C00), size: 16),
+                const SizedBox(height: 2),
+                Text(_duration!, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ]),
+            ],
           ] else if (_isLoadingRoute)
             const SizedBox(width: 18, height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFFC107))),

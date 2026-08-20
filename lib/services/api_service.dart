@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +7,7 @@ import '../models/compagnie_model.dart';
 import '../models/itineraire_model.dart';
 import '../models/reservation_model.dart';
 import '../core/utils/error_helper.dart';
+import '../core/utils/logger.dart';
 import 'storage_service.dart';
 
 class ApiService {
@@ -16,18 +16,18 @@ class ApiService {
 
   // ── Logger centralisé ─────────────────────────────────────────────────────
 
-  static void _logReq(String method, Uri url, {Map? headers, dynamic body}) {
-    debugPrint('┌─ [API] $method $url');
-    if (body != null) debugPrint('│  BODY    : $body');
+  static void _logReq(String method, Uri url, {dynamic body}) {
+    logDebug('┌─ [API] $method $url');
+    if (body != null) logDebug('│  BODY    : $body');
   }
 
   static void _logRes(String method, Uri url, int status, String body) {
     final preview = body.length > 800 ? '${body.substring(0, 800)}…' : body;
-    debugPrint('└─ [API] $method $url → $status\n   $preview');
+    logDebug('└─ [API] $method $url → $status\n   $preview');
   }
 
   static void _logErr(String method, Uri url, Object e) {
-    debugPrint('✗  [API] $method $url → ERREUR: $e');
+    logDebug('✗  [API] $method $url → ERREUR: $e');
   }
 
   // ── Vérifier statut compte ────────────────────────────────────────────────
@@ -283,22 +283,6 @@ class ApiService {
     } catch (e) {
       _logErr(method, url, e);
       throw Exception('Erreur de connexion : $e');
-    }
-  }
-
-  // ── Compagnie avec gares ──────────────────────────────────────────────────
-
-  Future<Compagnie> getCompagnieWithGares(int compagnieId) async {
-    final url = Uri.parse('$baseUrl/compagnie-with-gares/$compagnieId');
-    const method = 'GET';
-    _logReq(method, url);
-    final response = await http.get(url);
-    _logRes(method, url, response.statusCode, response.body);
-
-    if (response.statusCode == 200) {
-      return Compagnie.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load compagnie with gares');
     }
   }
 

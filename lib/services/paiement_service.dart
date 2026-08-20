@@ -1,4 +1,3 @@
-import '../models/paiement_model.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
 

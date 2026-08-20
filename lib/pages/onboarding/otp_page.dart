@@ -190,6 +190,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
         final tok = response['utilisateur']?['token'];
         if (tok != null) {
           _showSuccess("Code OTP vérifié !");
+          if (!mounted) return;
           Navigator.pushNamed(context, '/register', arguments: tok);
         } else {
           _showError("Erreur : token manquant.");
@@ -240,8 +241,8 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
         boxShadow: [
           BoxShadow(
             color: isActive
-                ? Colors.amber.withOpacity(0.3)
-                : Colors.black.withOpacity(0.08),
+                ? Colors.amber.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.08),
             blurRadius: isActive ? 10 : 6,
             offset: const Offset(0, 3),
           ),
@@ -303,7 +304,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
+                                    color: Colors.black.withValues(alpha: 0.2),
                                     blurRadius: 16,
                                     offset: const Offset(0, 4),
                                   ),
@@ -337,7 +338,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                             "Code envoyé à ${_email ?? '...'}",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.75),
+                              color: Colors.white.withValues(alpha: 0.75),
                               fontSize: 13,
                               height: 1.5,
                             ),
@@ -347,7 +348,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                             "Saisissez le code à 6 chiffres",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 12,
                             ),
                           ),
@@ -449,9 +450,9 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                                 backgroundColor: Colors.amber,
                                 foregroundColor: Colors.black87,
                                 disabledBackgroundColor:
-                                    Colors.amber.withOpacity(0.5),
+                                    Colors.amber.withValues(alpha: 0.5),
                                 elevation: 4,
-                                shadowColor: Colors.amber.withOpacity(0.35),
+                                shadowColor: Colors.amber.withValues(alpha: 0.35),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -496,8 +497,8 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
                                 side: BorderSide(
-                                    color: Colors.white.withOpacity(
-                                        _secondsLeft > 0 ? 0.2 : 0.5)),
+                                    color: Colors.white.withValues(
+                                        alpha: _secondsLeft > 0 ? 0.2 : 0.5)),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -544,7 +545,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                             children: [
                               Expanded(
                                 child: Divider(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: Colors.white.withValues(alpha: 0.3),
                                     thickness: 1),
                               ),
                               Padding(
@@ -553,14 +554,14 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                                 child: Text(
                                   "Besoin d'aide ?",
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.6),
+                                    color: Colors.white.withValues(alpha: 0.6),
                                     fontSize: 12,
                                   ),
                                 ),
                               ),
                               Expanded(
                                 child: Divider(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: Colors.white.withValues(alpha: 0.3),
                                     thickness: 1),
                               ),
                             ],
@@ -591,7 +592,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                                         minimumSize: const Size(
                                             double.infinity, 48),
                                         backgroundColor:
-                                            Colors.black.withOpacity(0.25),
+                                            Colors.black.withValues(alpha: 0.25),
                                         elevation: 0,
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 14),
@@ -600,7 +601,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                                               BorderRadius.circular(14),
                                           side: BorderSide(
                                               color: Colors.white
-                                                  .withOpacity(0.2)),
+                                                  .withValues(alpha: 0.2)),
                                         ),
                                       ),
                                     ),
@@ -609,7 +610,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                                       _phoneNumber ?? '—',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
+                                        color: Colors.white.withValues(alpha: 0.7),
                                         fontSize: 11,
                                       ),
                                     ),
@@ -652,7 +653,7 @@ class _OtpPageState extends State<Otp> with SingleTickerProviderStateMixin {
                                       _whatsappNumber ?? '—',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
+                                        color: Colors.white.withValues(alpha: 0.7),
                                         fontSize: 11,
                                       ),
                                     ),

@@ -1,0 +1,38 @@
+{
+  // Equivalent VS Code du .run/main.dart.run.xml d'Android Studio.
+  // F5 lance la configuration selectionnee dans la barre d'etat en bas.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Betro (debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug"
+    },
+    {
+      // Sans hot reload ni assertions : c'est ce mode qu'il faut utiliser pour
+      // juger des performances reelles (le "Skipped N frames" du mode debug
+      // n'est pas representatif).
+      "name": "Betro (profile)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "Betro (release)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "release"
+    },
+    {
+      // S'attache a une app deja lancee sur l'appareil, sans la redemarrer.
+      // Utile quand la connexion sans fil a saute mais que l'app tourne encore.
+      "name": "Betro (attach)",
+      "request": "attach",
+      "type": "dart"
+    }
+  ]
+}

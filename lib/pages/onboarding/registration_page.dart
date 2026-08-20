@@ -416,7 +416,7 @@ class _InscriptionPageState extends State<Inscription>
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
+                                      color: Colors.black.withValues(alpha: 0.2),
                                       blurRadius: 16,
                                       offset: const Offset(0, 4),
                                     ),
@@ -450,7 +450,7 @@ class _InscriptionPageState extends State<Inscription>
                               "Veuillez renseigner vos informations",
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.75),
+                                color: Colors.white.withValues(alpha: 0.75),
                                 fontSize: 13,
                                 height: 1.5,
                               ),
@@ -528,10 +528,10 @@ class _InscriptionPageState extends State<Inscription>
                                   backgroundColor: Colors.amber,
                                   foregroundColor: Colors.black87,
                                   disabledBackgroundColor:
-                                      Colors.amber.withOpacity(0.5),
+                                      Colors.amber.withValues(alpha: 0.5),
                                   elevation: 4,
                                   shadowColor:
-                                      Colors.amber.withOpacity(0.35),
+                                      Colors.amber.withValues(alpha: 0.35),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),

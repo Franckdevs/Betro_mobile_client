@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:betro/services/paiement_service.dart';
-import 'package:betro/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -15,16 +14,15 @@ import '../dashboard/ticket_page.dart';
 class DetailPaiementPage extends StatefulWidget {
   final int paiementId;
 
-  const DetailPaiementPage({Key? key, required this.paiementId}) : super(key: key);
+  const DetailPaiementPage({super.key, required this.paiementId});
 
   @override
-  _DetailPaiementPageState createState() => _DetailPaiementPageState();
+  State<DetailPaiementPage> createState() => _DetailPaiementPageState();
 }
 
 class _DetailPaiementPageState extends State<DetailPaiementPage>
     with SingleTickerProviderStateMixin {
   final PaiementService _paiementService = PaiementService();
-  final ApiService _apiService = ApiService();
   Map<String, dynamic>? _paiementData;
   bool _isLoading = true;
   bool _isGeneratingPdf = false;
@@ -37,18 +35,6 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
   AnimationController? _enterCtrl;
 
   // Accesseurs avec valeurs de repli si non initialisé
-  Animation<Offset> get _slideHeader => _enterCtrl == null
-      ? AlwaysStoppedAnimation(Offset.zero)
-      : Tween<Offset>(begin: const Offset(0, -0.35), end: Offset.zero).animate(
-          CurvedAnimation(parent: _enterCtrl!,
-              curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic)));
-
-  Animation<double> get _fadeHeader => _enterCtrl == null
-      ? const AlwaysStoppedAnimation(1.0)
-      : Tween<double>(begin: 0, end: 1).animate(
-          CurvedAnimation(parent: _enterCtrl!,
-              curve: const Interval(0.0, 0.5, curve: Curves.easeOut)));
-
   Animation<double> get _fadeHero => _enterCtrl == null
       ? const AlwaysStoppedAnimation(1.0)
       : Tween<double>(begin: 0, end: 1).animate(
@@ -129,8 +115,11 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
   Future<void> _makePhoneCall(String phone) async {
     final uri = Uri(scheme: 'tel', path: phone);
     try {
-      if (await canLaunchUrl(uri)) await launchUrl(uri);
-      else _toast('Impossible de lancer l\'appel', Colors.red);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        _toast('Impossible de lancer l\'appel', Colors.red);
+      }
     } catch (_) { _toast('Erreur lors de l\'appel', Colors.red); }
   }
 
@@ -159,7 +148,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
         ),
         Positioned(top: 10, right: 10,
           child: Container(
-            decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
             child: IconButton(icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop()),
           ),
@@ -225,7 +214,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87, size: 20),
               style: IconButton.styleFrom(
-                backgroundColor: Colors.black.withOpacity(0.08),
+                backgroundColor: Colors.black.withValues(alpha: 0.08),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.all(8),
               ),
@@ -234,7 +223,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
             Container(
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.receipt_rounded, color: Colors.black87, size: 20),
@@ -256,7 +245,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
                       onPressed: _downloadPdf,
                       icon: const Icon(Icons.download_rounded, color: Colors.black87, size: 22),
                       style: IconButton.styleFrom(
-                        backgroundColor: Colors.black.withOpacity(0.08),
+                        backgroundColor: Colors.black.withValues(alpha: 0.08),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.all(8),
                       ),
@@ -292,16 +281,16 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 3))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 3))],
             ),
             child: Column(children: [
               // Statut
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: (statusInfo['color'] as Color).withOpacity(0.1),
+                  color: (statusInfo['color'] as Color).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: (statusInfo['color'] as Color).withOpacity(0.3)),
+                  border: Border.all(color: (statusInfo['color'] as Color).withValues(alpha: 0.3)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(statusInfo['icon'] as IconData, size: 15, color: statusInfo['color'] as Color),
@@ -413,9 +402,9 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: _amber.withOpacity(0.1),
+                  color: _amber.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _amber.withOpacity(0.3)),
+                  border: Border.all(color: _amber.withValues(alpha: 0.3)),
                 ),
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   Text('Prix du trajet', style: TextStyle(color: Colors.amber.shade800, fontWeight: FontWeight.w500)),
@@ -489,7 +478,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
           ),
           borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(
-            color: const Color(0xFF1565C0).withOpacity(0.3),
+            color: const Color(0xFF1565C0).withValues(alpha: 0.3),
             blurRadius: 12, offset: const Offset(0, 4),
           )],
         ),
@@ -497,7 +486,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.confirmation_number_rounded, color: Colors.white, size: 24),
@@ -554,7 +543,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
           Row(children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: _amber.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: _amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.confirmation_number_rounded, color: _amber, size: 20),
             ),
             const SizedBox(width: 12),
@@ -565,7 +554,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: (statusInfo['color'] as Color).withOpacity(0.1),
+                color: (statusInfo['color'] as Color).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(statusInfo['text'] as String,
@@ -816,7 +805,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
@@ -824,7 +813,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
           child: Row(children: [
             Container(
               padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(color: _amber.withOpacity(0.15), borderRadius: BorderRadius.circular(9)),
+              decoration: BoxDecoration(color: _amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(9)),
               child: Icon(icon, size: 16, color: _amber),
             ),
             const SizedBox(width: 10),
@@ -1001,10 +990,10 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
 // ── WebView ───────────────────────────────────────────────────────────────────
 class WebViewPage extends StatefulWidget {
   final String url;
-  const WebViewPage({Key? key, required this.url}) : super(key: key);
+  const WebViewPage({super.key, required this.url});
 
   @override
-  _WebViewPageState createState() => _WebViewPageState();
+  State<WebViewPage> createState() => _WebViewPageState();
 }
 
 class _WebViewPageState extends State<WebViewPage> {
@@ -1041,7 +1030,7 @@ class _WebViewPageState extends State<WebViewPage> {
           Center(child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20)]),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)]),
             child: const Column(mainAxisSize: MainAxisSize.min, children: [
               CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFC107)), strokeWidth: 3),

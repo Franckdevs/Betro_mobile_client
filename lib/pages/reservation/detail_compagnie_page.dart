@@ -13,6 +13,8 @@ import '../../models/gare1_model.dart' as gare1;
 import '../../pages/dashboard/gare_map_page.dart';
 import 'gares_compagnie_page.dart';
 import 'selection_siege.dart' show SelectionSiegePage;
+import '../../core/utils/logger.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
 
 class DetailCompagniePage extends StatefulWidget {
   final Compagnie compagnie;
@@ -25,7 +27,6 @@ class DetailCompagniePage extends StatefulWidget {
 
 class _DetailCompagniePageState extends State<DetailCompagniePage> {
   final _formKey = GlobalKey<FormState>();
-  final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
 
   List<Ville> _villes = [];
@@ -94,8 +95,11 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         List<dynamic> list = [];
-        if (data['data'] is List) list = data['data'];
-        else if (data is List) list = data;
+        if (data['data'] is List) {
+          list = data['data'];
+        } else if (data is List) {
+          list = data;
+        }
         setState(() {
           _classes = list.whereType<Map<String, dynamic>>().toList();
         });
@@ -114,12 +118,12 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     });
     try {
       final url = '${ApiService.baseUrl}/liste_gare_compagnie/${widget.compagnie.id}';
-      print('[GARES] GET $url  (filtre ville_id=$villeId)');
+      logDebug('[GARES] GET $url  (filtre ville_id=$villeId)');
       final response = await http.get(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
-      print('[GARES] status=${response.statusCode}  body=${response.body}');
+      logDebug('[GARES] status=${response.statusCode}  body=${response.body}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
@@ -128,20 +132,36 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
           final match    = list.where((g) => g['ville_id'].toString() == villeId).toList();
           final others   = list.where((g) => g['ville_id'].toString() != villeId).toList();
           final sorted   = [...match, ...others];
-          print('[GARES] total=${list.length}  ville_id=$villeId → ${match.length} prioritaire(s) + ${others.length} autre(s)');
+          logDebug('[GARES] total=${list.length}  ville_id=$villeId → ${match.length} prioritaire(s) + ${others.length} autre(s)');
           setState(() {
             _gares = sorted.map((g) => Gare.fromJson(g)).toList();
           });
         } else {
-          print('[GARES] success=false  message=${data['message']}');
+          logDebug('[GARES] success=false  message=${data['message']}');
         }
       }
     } catch (e) {
-      print('[GARES] ERREUR: $e');
+      logDebug('[GARES] ERREUR: $e');
     }
     finally {
       setState(() => _isLoadingGares = false);
     }
+  }
+
+  /// Une gare située hors de la ville de départ désigne la destination :
+  /// on renseigne la ville d'arrivée automatiquement.
+  /// À appeler dans un setState (modifie l'état sans le déclencher).
+  bool _autoFillVilleArrivee(Gare gare) {
+    final villeId = gare.villeId;
+    if (villeId.isEmpty || villeId == _villeDepartId) return false;
+    if (villeId == _villeArriveeId) return false;
+    // La ville doit exister dans la liste, sinon le champ resterait vide
+    if (!_villes.any((v) => v.id.toString() == villeId)) return false;
+
+    _villeArriveeId = villeId;
+    // Force les champs ville à réafficher la valeur sélectionnée
+    _autocompleteKey++;
+    return true;
   }
 
   Future<void> _rechercherVoyages() async {
@@ -168,8 +188,8 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
 
       final uri = Uri.parse('${ApiService.baseUrl}/choisir_destination');
       final body = json.encode(requestData);
-      debugPrint('┌─ [VOYAGE] POST $uri');
-      debugPrint('│  BODY : $body');
+      logDebug('┌─ [VOYAGE] POST $uri');
+      logDebug('│  BODY : $body');
 
       final response = await http.post(
         uri,
@@ -180,15 +200,20 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
       final preview = response.body.length > 800
           ? '${response.body.substring(0, 800)}…'
           : response.body;
-      debugPrint('└─ [VOYAGE] ${response.statusCode}\n   $preview');
+      logDebug('└─ [VOYAGE] ${response.statusCode}\n   $preview');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         List<dynamic> voyages = [];
-        if (data['voyage'] is List) voyages = data['voyage'];
-        else if (data['data'] is List) voyages = data['data'];
-        else if (data is List) voyages = data;
-        else if (data is Map && data.isNotEmpty) voyages = [data];
+        if (data['voyage'] is List) {
+          voyages = data['voyage'];
+        } else if (data['data'] is List) {
+          voyages = data['data'];
+        } else if (data is List) {
+          voyages = data;
+        } else if (data is Map && data.isNotEmpty) {
+          voyages = [data];
+        }
 
         final List<Map<String, dynamic>> processed = [];
         for (var voyage in voyages) {
@@ -210,10 +235,12 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
             if (arret is Map && arret['tarification'] is Map) {
               final t = arret['tarification'];
               p['montant'] = t['montant'];
-              if (t['ville_depart'] is Map)
+              if (t['ville_depart'] is Map) {
                 p['ville_depart'] = {'nom_ville': t['ville_depart']['nom_ville']};
-              if (t['ville_arrivee'] is Map)
+              }
+              if (t['ville_arrivee'] is Map) {
                 p['ville_arrivee'] = {'nom_ville': t['ville_arrivee']['nom_ville']};
+              }
               if (t['classe'] is Map) p['classe'] = {'nom': t['classe']['nom']};
             }
             // Conserver les gares départ/arrivée pour la carte
@@ -282,7 +309,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   static const String _imageBaseUrl = "http://192.168.95.123:8000";
 
   /// Retourne la liste des URLs complètes des photos d'un bus.
-  /// photo_bus peut être un List<dynamic> ou une String JSON.
+  /// photo_bus peut être un `List<dynamic>` ou une String JSON.
   List<String> _getBusPhotos(dynamic photoBus) {
     if (photoBus == null) return [];
     List<dynamic> items;
@@ -306,9 +333,6 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
         .toList();
   }
 
-  void _showFullScreenImage(String imageUrl) {
-    _showBusImages([imageUrl]);
-  }
 
   void _showBusImages(List<String> urls, {int initialIndex = 0}) {
     if (urls.isEmpty) return;
@@ -327,10 +351,15 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: _isLoading && _villes.isEmpty
-          ? const Center(
-              child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(_amber),
-                  strokeWidth: 3))
+          ? Column(children: [
+              _buildHeader(context),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                  child: _buildLoadingState('Chargement de la compagnie…'),
+                ),
+              ),
+            ])
           : Form(
               key: _formKey,
               child: Column(
@@ -351,11 +380,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                             child: Column(
                               children: [
                                 if (_isLoading && _villes.isNotEmpty)
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 32),
-                                    child: Center(child: CircularProgressIndicator(
-                                        valueColor: AlwaysStoppedAnimation<Color>(_amber))),
-                                  )
+                                  _buildLoadingState('Recherche des voyages…')
                                 else if (!_hasSearched)
                                   _buildSearchHint()
                                 else ...[
@@ -410,7 +435,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
                     color: Colors.black87, size: 20),
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.black.withOpacity(0.08),
+                  backgroundColor: Colors.black.withValues(alpha: 0.08),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.all(8),
@@ -425,7 +450,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.1), blurRadius: 8)
+                        color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)
                   ],
                 ),
                 child: hasLogo
@@ -474,7 +499,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Row(
@@ -507,12 +532,12 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.10),
+              color: Colors.black.withValues(alpha: 0.10),
               blurRadius: 20,
               spreadRadius: 1,
               offset: const Offset(0, 6)),
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2)),
         ],
@@ -530,7 +555,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                 Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                      color: _amber.withOpacity(0.15),
+                      color: _amber.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(9)),
                   child: const Icon(Icons.search_rounded,
                       size: 16, color: _amber),
@@ -622,10 +647,12 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                 selectedId: _villeArriveeId,
                                 onSelected: (id) => setState(() => _villeArriveeId = id),
                                 validator: (id) {
-                                  if (id == null)
+                                  if (id == null) {
                                     return 'Sélectionnez une ville d\'arrivée';
-                                  if (id == _villeDepartId)
+                                  }
+                                  if (id == _villeDepartId) {
                                     return 'Différente de la ville de départ';
+                                  }
                                   return null;
                                 },
                               ),
@@ -649,7 +676,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: _amber.withOpacity(0.45),
+                                    color: _amber.withValues(alpha: 0.45),
                                     blurRadius: 10,
                                     offset: const Offset(0, 3),
                                   ),
@@ -694,7 +721,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            color: _amber.withOpacity(0.12),
+                            color: _amber.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(11),
                           ),
                           child: Column(
@@ -741,7 +768,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: _amber.withOpacity(0.12),
+                            color: _amber.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Text('Modifier',
@@ -825,9 +852,9 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.07),
+          color: Colors.orange.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.orange.withOpacity(0.25)),
+          border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
         ),
         child: const Row(children: [
           Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 16),
@@ -853,7 +880,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                 Container(
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
-                    color: _amber.withOpacity(0.15),
+                    color: _amber.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(7),
                   ),
                   child: const Icon(Icons.place_rounded, size: 14, color: _amber),
@@ -874,11 +901,30 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
             ..._gares.map<Widget>((gare) {
               final isSelected = _gareDepartId == gare.id.toString();
               final isVilleDepart = gare.villeId == _villeDepartId;
+              final isVilleArrivee =
+                  gare.villeId.isNotEmpty && gare.villeId == _villeArriveeId;
 
               return GestureDetector(
                 onTap: () {
-                  setState(() => _gareDepartId = gare.id.toString());
+                  bool villeRemplie = false;
+                  setState(() {
+                    _gareDepartId = gare.id.toString();
+                    villeRemplie = _autoFillVilleArrivee(gare);
+                  });
                   state.didChange(gare.id.toString());
+                  if (villeRemplie) {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(SnackBar(
+                        content: Text('Ville d\'arrivée : ${gare.ville}'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                        backgroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        margin: const EdgeInsets.all(16),
+                      ));
+                  }
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
@@ -895,8 +941,8 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                     boxShadow: [
                       BoxShadow(
                         color: isSelected
-                            ? _amber.withOpacity(0.15)
-                            : Colors.black.withOpacity(0.04),
+                            ? _amber.withValues(alpha: 0.15)
+                            : Colors.black.withValues(alpha: 0.04),
                         blurRadius: isSelected ? 10 : 4,
                         offset: const Offset(0, 2),
                       ),
@@ -961,6 +1007,23 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                                         style: TextStyle(
                                             fontSize: 9,
                                             color: Colors.green.shade700,
+                                            fontWeight: FontWeight.w700)),
+                                  ),
+                                ] else if (isVilleArrivee) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade50,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border:
+                                          Border.all(color: Colors.red.shade200),
+                                    ),
+                                    child: Text('Ville arrivée',
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            color: Colors.red.shade700,
                                             fontWeight: FontWeight.w700)),
                                   ),
                                 ],
@@ -1076,7 +1139,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: _amber.withOpacity(0.15),
+                color: _amber.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(7),
               ),
               child: const Icon(Icons.airline_seat_recline_normal_rounded,
@@ -1123,7 +1186,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                                color: _amber.withOpacity(0.35),
+                                color: _amber.withValues(alpha: 0.35),
                                 blurRadius: 8,
                                 offset: const Offset(0, 3))
                           ]
@@ -1185,7 +1248,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1246,7 +1309,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
           child: Material(
             elevation: 6,
             borderRadius: BorderRadius.circular(14),
-            shadowColor: Colors.black.withOpacity(0.12),
+            shadowColor: Colors.black.withValues(alpha: 0.12),
             color: Colors.white,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 240),
@@ -1266,8 +1329,8 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                     final ville = options.elementAt(index);
                     return InkWell(
                       onTap: () => onOptionSelected(ville),
-                      splashColor: _amber.withOpacity(0.10),
-                      highlightColor: _amber.withOpacity(0.06),
+                      splashColor: _amber.withValues(alpha: 0.10),
+                      highlightColor: _amber.withValues(alpha: 0.06),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 13),
@@ -1276,7 +1339,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: iconColor.withOpacity(0.10),
+                              color: iconColor.withValues(alpha: 0.10),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(icon, size: 15, color: iconColor),
@@ -1319,7 +1382,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.12),
+                  color: iconColor.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 15, color: iconColor),
@@ -1367,7 +1430,39 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     );
   }
 
-  // ── En-tête résultats ─────────────────────────────────────────────────────
+  // ── État de chargement : spinner + skeleton ───────────────────────────────
+  Widget _buildLoadingState(String label) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Bandeau spinner + libellé
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    valueColor: AlwaysStoppedAnimation<Color>(_amber)),
+              ),
+              const SizedBox(width: 10),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54)),
+            ],
+          ),
+        ),
+        // Cartes fantômes
+        ...List.generate(3, (_) => const SkeletonVoyageCard()),
+      ],
+    );
+  }
+
   Widget _buildResultsHeader() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -1384,7 +1479,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: _amber.withOpacity(0.15),
+                color: _amber.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -1405,10 +1500,6 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
         (voyage['heure_depart']?.toString() ?? '').length >= 5
             ? voyage['heure_depart'].toString().substring(0, 5)
             : voyage['heure_depart']?.toString() ?? '--:--';
-    final heureArrivee =
-        (voyage['heure_arrivee']?.toString() ?? '').length >= 5
-            ? voyage['heure_arrivee'].toString().substring(0, 5)
-            : voyage['heure_arrivee']?.toString();
     final dateDepart = voyage['date_depart']?.toString() ?? '';
     final villeDepart = voyage['ville_depart']?['nom_ville'] ?? 'Inconnue';
     final villeArrivee = voyage['ville_arrivee']?['nom_ville'] ?? 'Inconnue';
@@ -1483,7 +1574,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
           context,
           MaterialPageRoute(
             builder: (_) => SelectionSiegePage(
-              busId: int.tryParse(bus!['id']?.toString() ?? '0') ?? 0,
+              busId: int.tryParse(bus['id']?.toString() ?? '0') ?? 0,
               voyageId: int.tryParse(voyage['id']?.toString() ?? '0') ?? 0,
               nombrePlaces:
                   int.tryParse(bus['nombre_places']?.toString() ?? '0') ?? 0,
@@ -1515,7 +1606,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 14,
               offset: const Offset(0, 3)),
         ],
@@ -1539,7 +1630,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text('Tous les jours',
@@ -1848,7 +1939,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: _amber.withOpacity(0.08),
+              color: _amber.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.directions_bus_rounded,
@@ -1925,14 +2016,14 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04), blurRadius: 10)
+              color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)
         ],
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1), shape: BoxShape.circle),
+              color: Colors.grey.withValues(alpha: 0.1), shape: BoxShape.circle),
           child: Icon(Icons.directions_bus_rounded,
               size: 48, color: Colors.grey[400]),
         ),

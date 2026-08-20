@@ -5,19 +5,20 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/gare_model.dart';
 import '../../services/api_service.dart';
 import '../../core/widgets/shimmer_skeleton.dart';
+import '../../core/utils/logger.dart';
 
 class GaresCompagniePage extends StatefulWidget {
   final int compagnieId;
   final String compagnieNom;
 
   const GaresCompagniePage({
-    Key? key,
+    super.key,
     required this.compagnieId,
     required this.compagnieNom,
-  }) : super(key: key);
+  });
 
   @override
-  _GaresCompagniePageState createState() => _GaresCompagniePageState();
+  State<GaresCompagniePage> createState() => _GaresCompagniePageState();
 }
 
 class _GaresCompagniePageState extends State<GaresCompagniePage>
@@ -63,7 +64,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
     });
 
     final url = '${ApiService.baseUrl}/liste_gare_compagnie/${widget.compagnieId}';
-    print('[GARES_PAGE] ── GET $url');
+    logDebug('[GARES_PAGE] ── GET $url');
 
     try {
       final response = await http.get(
@@ -71,29 +72,29 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('[GARES_PAGE] ── STATUS: ${response.statusCode}');
-      print('[GARES_PAGE] ── BODY  : ${response.body}');
+      logDebug('[GARES_PAGE] ── STATUS: ${response.statusCode}');
+      logDebug('[GARES_PAGE] ── BODY  : ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           final garesList = (data['data'] as List).cast<Map<String, dynamic>>();
-          print('[GARES_PAGE] ── ${garesList.length} gare(s) reçue(s)');
+          logDebug('[GARES_PAGE] ── ${garesList.length} gare(s) reçue(s)');
           setState(() {
             _gares = garesList.map((g) => Gare.fromJson(g)).toList();
             _filteredGares = List.from(_gares);
           });
         } else {
           final msg = data['message'] ?? 'Erreur lors du chargement des gares';
-          print('[GARES_PAGE] ── success=false  message=$msg');
+          logDebug('[GARES_PAGE] ── success=false  message=$msg');
           setState(() => _errorMessage = msg);
         }
       } else {
-        print('[GARES_PAGE] ── Erreur HTTP ${response.statusCode}');
+        logDebug('[GARES_PAGE] ── Erreur HTTP ${response.statusCode}');
         setState(() => _errorMessage = 'Erreur serveur (${response.statusCode})');
       }
     } catch (e) {
-      print('[GARES_PAGE] ── EXCEPTION: $e');
+      logDebug('[GARES_PAGE] ── EXCEPTION: $e');
       setState(() => _errorMessage = 'Erreur: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -129,17 +130,6 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
     }
   }
 
-  Future<void> _sendEmail(String email) async {
-    final uri = Uri(scheme: 'mailto', path: email);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Impossible d'ouvrir l'application email")),
-      );
-    }
-  }
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
@@ -197,7 +187,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
                     icon: const Icon(Icons.arrow_back_ios_new_rounded,
                         color: Colors.black87, size: 20),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.black.withOpacity(0.08),
+                      backgroundColor: Colors.black.withValues(alpha: 0.08),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.all(8),
@@ -260,7 +250,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.black87 : Colors.black.withOpacity(0.12),
+          color: isSelected ? Colors.black87 : Colors.black.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -292,7 +282,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.08),
+                color: Colors.red.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.error_outline, size: 48, color: Colors.red),
@@ -331,7 +321,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: _amber.withOpacity(0.1),
+                color: _amber.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.departure_board_outlined,
@@ -351,7 +341,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
     if (_filteredGares.isEmpty) {
       return Center(
         child: Text(
-          'Aucune gare pour "${_selectedVille}"',
+          'Aucune gare pour "$_selectedVille"',
           style: TextStyle(fontSize: 14, color: Colors.grey[500]),
         ),
       );
@@ -382,7 +372,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -395,7 +385,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             decoration: BoxDecoration(
-              color: _amber.withOpacity(0.08),
+              color: _amber.withValues(alpha: 0.08),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(18)),
             ),
@@ -407,7 +397,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: _amber.withOpacity(0.2),
+                    color: _amber.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.departure_board_rounded,
@@ -432,7 +422,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 3),
                         decoration: BoxDecoration(
-                          color: _amber.withOpacity(0.18),
+                          color: _amber.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -483,7 +473,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
 
           // ── Boutons d'action ───────────────────────────────────
           if ((gare.latitude != 0 && gare.longitude != 0) ||
-              (gare.siteWeb?.isNotEmpty ?? false)) ...[
+              gare.siteWeb.isNotEmpty) ...[
             const Divider(height: 1, indent: 16, endIndent: 16),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -498,16 +488,16 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
                           _openItineraire(gare.latitude, gare.longitude),
                     ),
                   if ((gare.latitude != 0 && gare.longitude != 0) &&
-                      (gare.siteWeb?.isNotEmpty ?? false))
+                      gare.siteWeb.isNotEmpty)
                     const SizedBox(width: 8),
-                  if (gare.siteWeb?.isNotEmpty ?? false)
+                  if (gare.siteWeb.isNotEmpty)
                     _actionBtn(
                       icon: Icons.language_rounded,
                       label: 'Site web',
                       color: Colors.blue[700]!,
                       onTap: () => _launchUrl(
-                        gare.siteWeb!.startsWith('http')
-                            ? gare.siteWeb!
+                        gare.siteWeb.startsWith('http')
+                            ? gare.siteWeb
                             : 'https://${gare.siteWeb}',
                       ),
                     ),
@@ -530,7 +520,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
           Container(
             padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, size: 14, color: color),
@@ -561,7 +551,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 9),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
