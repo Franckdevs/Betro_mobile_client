@@ -602,14 +602,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _buildBannerSlide(String? imageUrl) {
     return Stack(fit: StackFit.expand, children: [
       // Background : image ou dégradé amber
-      if (imageUrl != null)
+      if (imageUrl != null) ...[
+        // Fond visible dans les bandes vides quand l'image (BoxFit.contain,
+        // jamais rognée) ne remplit pas tout le cadre.
+        _bannerGradientBg(),
         CachedNetworkImage(
           imageUrl: imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           placeholder: (_, __) => _bannerGradientBg(),
           errorWidget: (_, __, ___) => _bannerGradientBg(),
-        )
-      else
+        ),
+      ] else
         _bannerGradientBg(),
       // Overlay dégradé pour lisibilité du texte
       if (imageUrl != null)
