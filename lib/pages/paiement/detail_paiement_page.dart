@@ -11,7 +11,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
-import '../../services/api_service.dart';
 import '../dashboard/ticket_page.dart';
 
 class DetailPaiementPage extends StatefulWidget {
@@ -404,22 +403,6 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
             _buildRow('Méthode', p['moyenPaiement'] ?? 'N/A'),
             _buildRow('Date', _formatDate(p['datePaiement'] ?? '')),
             _buildRow('Heure', p['HeurePaiement'] ?? 'N/A'),
-            if (p['code_paiement'] != null) ...[
-              const SizedBox(height: 8),
-              const Divider(height: 1, color: Color(0xFFF0F0F0)),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => _voirRecuEnLigne(p['code_paiement'].toString()),
-                child: Row(children: [
-                  Icon(Icons.open_in_new_rounded, size: 15, color: Colors.blue.shade700),
-                  const SizedBox(width: 8),
-                  Text('Voir le reçu en ligne',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.blue.shade700)),
-                  const Spacer(),
-                  Icon(Icons.chevron_right_rounded, size: 18, color: Colors.blue.shade700),
-                ]),
-              ),
-            ],
           ]),
           const SizedBox(height: 14),
 
@@ -673,13 +656,6 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
       const Spacer(),
       Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
     ]);
-  }
-
-  void _voirRecuEnLigne(String codePaiement) {
-    final baseUrl = ApiService.baseUrl.replaceAll('/api', '');
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => WebViewPage(url: '$baseUrl/status-paiement/$codePaiement'),
-    ));
   }
 
   void _ouvrirTicket() {
