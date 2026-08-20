@@ -736,7 +736,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ),
           ]),
-          if (_reservations.isNotEmpty) ...[
+          if (_reservations.any((r) =>
+              !(r.status == '1' ||
+                  r.status.toLowerCase().contains('scan') ||
+                  r.status.toLowerCase() == 'valide'))) ...[
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
