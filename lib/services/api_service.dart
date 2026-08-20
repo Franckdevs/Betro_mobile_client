@@ -480,7 +480,7 @@ class ApiService {
     final url = Uri.parse('$baseUrl/signalement');
     const method = 'POST';
     try {
-      final body = jsonEncode({'contenu': contenu});
+      final body = jsonEncode({'token': token, 'contenu': contenu});
       _logReq(method, url, body: body);
       final response = await http.post(
         url,
