@@ -46,6 +46,11 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   bool _isSearchExpanded = true;
   int _autocompleteKey = 0;
 
+  // Indicateur "encore du contenu en dessous" pour le panneau de recherche
+  // repliable (villes + liste des gares), qui peut deborder de sa hauteur max.
+  final ScrollController _searchPanelScrollController = ScrollController();
+  bool _searchPanelHasMoreBelow = false;
+
   static const _amber = Color(0xFFFFC107);
   static const _moisAbbr = ['jan', 'fév', 'mar', 'avr', 'mai', 'juin', 'juil', 'août', 'sep', 'oct', 'nov', 'déc'];
 
@@ -54,12 +59,56 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     super.initState();
     _loadVilles();
     _loadClasses();
+    _searchPanelScrollController.addListener(_updateSearchPanelScrollIndicator);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateSearchPanelScrollIndicator());
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchPanelScrollController.dispose();
     super.dispose();
+  }
+
+  /// Recalcule si le panneau de recherche a encore du contenu masque en
+  /// dessous (liste de gares longue, notamment) pour afficher un indicateur.
+  void _updateSearchPanelScrollIndicator() {
+    if (!_searchPanelScrollController.hasClients) return;
+    final position = _searchPanelScrollController.position;
+    final encoreDuContenu = position.maxScrollExtent - position.pixels > 8;
+    if (encoreDuContenu != _searchPanelHasMoreBelow) {
+      setState(() => _searchPanelHasMoreBelow = encoreDuContenu);
+    }
+  }
+
+  /// Degrade + chevron en bas du panneau de recherche, visible uniquement
+  /// s'il reste du contenu masque (ex. liste de gares longue) sous la
+  /// hauteur max visible.
+  Widget _buildScrollMoreIndicator() {
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: _searchPanelHasMoreBelow ? 1 : 0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          height: 40,
+          alignment: Alignment.bottomCenter,
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withValues(alpha: 0),
+                Colors.white.withValues(alpha: 0.95),
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.only(bottom: 4),
+          child: const Icon(Icons.keyboard_arrow_down_rounded,
+              size: 20, color: Colors.grey),
+        ),
+      ),
+    );
   }
 
 
@@ -136,6 +185,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
           setState(() {
             _gares = sorted.map((g) => Gare.fromJson(g)).toList();
           });
+          WidgetsBinding.instance.addPostFrameCallback((_) => _updateSearchPanelScrollIndicator());
         } else {
           logDebug('[GARES] success=false  message=${data['message']}');
         }
@@ -547,7 +597,12 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
         children: [
           // ── En-tête cliquable ──────────────────────────────
           GestureDetector(
-            onTap: () => setState(() => _isSearchExpanded = !_isSearchExpanded),
+            onTap: () {
+              setState(() => _isSearchExpanded = !_isSearchExpanded);
+              // Laisse l'AnimatedCrossFade se terminer avant de mesurer.
+              Future.delayed(const Duration(milliseconds: 260),
+                  _updateSearchPanelScrollIndicator);
+            },
             behavior: HitTestBehavior.opaque,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
@@ -579,11 +634,15 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
           ),
           // ── Contenu repliable ──────────────────────────────
           AnimatedCrossFade(
-            firstChild: ConstrainedBox(
+            firstChild: Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                ConstrainedBox(
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.55,
               ),
               child: SingleChildScrollView(
+                controller: _searchPanelScrollController,
                 physics: const BouncingScrollPhysics(),
                 child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -817,6 +876,9 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
               ),
                 ),
               ),
+            ),
+                _buildScrollMoreIndicator(),
+              ],
             ),
             secondChild: const SizedBox.shrink(),
             crossFadeState: _isSearchExpanded
