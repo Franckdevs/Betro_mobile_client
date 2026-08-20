@@ -197,11 +197,11 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     }
   }
 
-  Future<void> _loadGares(String villeId) async {
+  Future<void> _loadGares(String villeId, {bool preserverGareDepart = false}) async {
     if (villeId.isEmpty) return;
     setState(() {
       _isLoadingGares = true;
-      _gareDepartId = null;
+      if (!preserverGareDepart) _gareDepartId = null;
     });
     try {
       final url = '${ApiService.baseUrl}/liste_gare_compagnie/${widget.compagnie.id}';
@@ -370,11 +370,14 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     setState(() {
       _villeDepartId = _villeArriveeId;
       _villeArriveeId = tempId;
-      _gareDepartId = null;
-      _gares = [];
+      // La gare de depart deja choisie reste une option valide : la
+      // liste des gares n'est jamais filtree par ville (juste reordonnee),
+      // donc pas besoin de la reinitialiser lors du swap.
       _autocompleteKey++;
     });
-    if (_villeDepartId != null) _loadGares(_villeDepartId!);
+    if (_villeDepartId != null) {
+      _loadGares(_villeDepartId!, preserverGareDepart: true);
+    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
