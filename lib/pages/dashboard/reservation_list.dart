@@ -159,6 +159,28 @@ class ReservationList extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (reservation.paiementsId > 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.check_circle_rounded, size: 11, color: Colors.green),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Payé',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ]),
+                ),
+                const SizedBox(width: 6),
+              ],
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -177,7 +199,7 @@ class ReservationList extends StatelessWidget {
                   ),
                   const SizedBox(width: 5),
                   Text(
-                    isScanned ? 'Scanné' : 'En attente',
+                    isScanned ? 'Scanné' : 'En attente de contrôleur',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
