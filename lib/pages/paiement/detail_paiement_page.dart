@@ -717,6 +717,19 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
       final nomCompagnie = c['nom_complet_compagnies'] ?? 'N/A';
       final telephone = p['telephone']?.toString() ?? 'N/A';
 
+      pw.MemoryImage? logoImage;
+      final logoUrl = c['logo_compagnies']?.toString();
+      if (logoUrl != null && logoUrl.isNotEmpty) {
+        try {
+          final resp = await http.get(Uri.parse(logoUrl));
+          if (resp.statusCode == 200) {
+            logoImage = pw.MemoryImage(resp.bodyBytes);
+          }
+        } catch (_) {
+          // Logo indisponible : le reçu reste généré sans logo.
+        }
+      }
+
       final amber = PdfColor.fromHex('#FFC107');
       final darkText = PdfColors.grey900;
       final lightGrey = PdfColor.fromHex('#F5F5F5');
@@ -753,11 +766,28 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
                 color: amber,
                 borderRadius: pw.BorderRadius.circular(14),
               ),
-              child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                pw.Text('BETRO', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
-                pw.SizedBox(height: 4),
-                pw.Text('Reçu de paiement', style: pw.TextStyle(fontSize: 13, color: PdfColor.fromHex('#333333'))),
-              ]),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                    pw.Text('BETRO', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
+                    pw.SizedBox(height: 4),
+                    pw.Text('Reçu de paiement', style: pw.TextStyle(fontSize: 13, color: PdfColor.fromHex('#333333'))),
+                  ]),
+                  if (logoImage != null)
+                    pw.Container(
+                      width: 48,
+                      height: 48,
+                      padding: const pw.EdgeInsets.all(4),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.white,
+                        shape: pw.BoxShape.circle,
+                      ),
+                      child: pw.ClipOval(child: pw.Image(logoImage, fit: pw.BoxFit.contain)),
+                    ),
+                ],
+              ),
             ),
             pw.SizedBox(height: 24),
 
@@ -828,7 +858,22 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
                   border: pw.Border.all(color: PdfColor.fromHex('#EEEEEE')),
                   borderRadius: pw.BorderRadius.circular(12),
                 ),
-                child: infoRow('Nom', nomCompagnie),
+                child: logoImage == null
+                    ? infoRow('Nom', nomCompagnie)
+                    : pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+                        pw.Container(
+                          width: 40,
+                          height: 40,
+                          padding: const pw.EdgeInsets.all(3),
+                          decoration: pw.BoxDecoration(
+                            color: lightGrey,
+                            shape: pw.BoxShape.circle,
+                          ),
+                          child: pw.ClipOval(child: pw.Image(logoImage, fit: pw.BoxFit.contain)),
+                        ),
+                        pw.SizedBox(width: 14),
+                        pw.Expanded(child: infoRow('Nom', nomCompagnie)),
+                      ]),
               ),
               pw.SizedBox(height: 20),
             ],
@@ -839,7 +884,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
             pw.SizedBox(height: 8),
             pw.Center(
               child: pw.Text(
-                'Généré par Betro • ${DateFormat('dd/MM/yyyy à HH:mm').format(DateTime.now())}',
+                'Généré par Betro - ${DateFormat('dd/MM/yyyy à HH:mm').format(DateTime.now())}',
                 style: pw.TextStyle(fontSize: 9, color: labelGrey),
               ),
             ),
