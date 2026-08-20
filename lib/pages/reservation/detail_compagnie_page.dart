@@ -1132,15 +1132,26 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                               ],
                             ),
 
-                            // Adresse
-                            if (gare.adresseGare.isNotEmpty) ...[
+                            // Adresse + ville (la ville doit toujours
+                            // apparaitre : l'adresse brute -- souvent une
+                            // saisie Google Places -- ne suffit pas a elle
+                            // seule a identifier clairement la ville).
+                            if (gare.adresseGare.isNotEmpty || gare.ville.isNotEmpty) ...[
                               const SizedBox(height: 3),
                               Row(children: [
                                 Icon(Icons.location_on_outlined,
                                     size: 11, color: Colors.grey[400]),
                                 const SizedBox(width: 3),
                                 Expanded(
-                                  child: Text(gare.adresseGare,
+                                  child: Text(
+                                      [
+                                        if (gare.adresseGare.isNotEmpty) gare.adresseGare,
+                                        if (gare.ville.isNotEmpty &&
+                                            !gare.adresseGare
+                                                .toLowerCase()
+                                                .contains(gare.ville.toLowerCase()))
+                                          gare.ville,
+                                      ].join(' · '),
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey[500]),
