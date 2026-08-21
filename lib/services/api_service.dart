@@ -206,14 +206,15 @@ class ApiService {
 
   // ── Initier paiement ──────────────────────────────────────────────────────
 
+  /// [sieges] : un élément par siège du panier, ex.
+  /// `{'numero_place': 4, 'nom_complet': '...', 'telephone_proprietaire': '...', 'email_proprietaire': '...'}`.
+  /// Les clés bénéficiaire sont facultatives par siège : si absentes, le backend
+  /// applique les informations de l'utilisateur connecté par défaut.
   Future<Map<String, dynamic>> initierPaiement({
     required String token,
     required int voyageId,
     required int idArretVoyage,
-    required int numeroPlace,
-    String? telephoneProprietaire,
-    String? nomComplet,
-    String? emailProprietaire,
+    required List<Map<String, dynamic>> sieges,
   }) async {
     final url = Uri.parse('$baseUrl/InitiationPaiement');
     const method = 'POST';
@@ -222,15 +223,8 @@ class ApiService {
         'token': token,
         'voyage_id': voyageId,
         'id_arret_voayage': idArretVoyage,
-        'numero_place': numeroPlace,
+        'sieges': sieges,
       };
-      if (telephoneProprietaire != null && telephoneProprietaire.isNotEmpty) {
-        requestBody['telephone_proprietaire'] = telephoneProprietaire;
-      }
-      if (nomComplet != null && nomComplet.isNotEmpty) requestBody['nom_complet'] = nomComplet;
-      if (emailProprietaire != null && emailProprietaire.isNotEmpty) {
-        requestBody['email_proprietaire'] = emailProprietaire;
-      }
 
       final body = jsonEncode(requestBody);
       _logReq(method, url, body: body);

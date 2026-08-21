@@ -7,6 +7,20 @@ import '../../services/storage_service.dart';
 import '../../core/widgets/shimmer_skeleton.dart';
 import 'paiement/paiement_webview_page.dart';
 
+/// Champs éditables (nom, téléphone, email) du bénéficiaire d'un siège du panier.
+/// Si laissés vides, le backend applique par défaut les informations de l'utilisateur connecté.
+class _SeatBeneficiaryControllers {
+  final nom = TextEditingController();
+  final tel = TextEditingController();
+  final email = TextEditingController();
+
+  void dispose() {
+    nom.dispose();
+    tel.dispose();
+    email.dispose();
+  }
+}
+
 class SelectionSiegePage extends StatefulWidget {
   final int busId;
   final int voyageId;
@@ -53,23 +67,15 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
   bool _isLoading = true;
   List<dynamic> _placesOccupees = [];
   List<dynamic> _placesDisponibles = [];
-  int? _selectedSeat;
-  String? _selectedSeatName; // used in future UI
+  // Panier de sièges : numéro de siège -> nom du siège, dans l'ordre de sélection.
+  final Map<int, String> _selectedSeats = {};
   Map<String, dynamic>? _userInfo;
   bool _isLoadingUserInfo = false;
-  bool _showAdditionalInfo = false;
-  final _beneficiaryFormKey = GlobalKey<FormState>();
 
-  // Beneficiary controllers (class-level for reliability across modal lifecycle)
-  final _beneficiaryNomController = TextEditingController();
-  final _beneficiaryTelController = TextEditingController();
-  final _beneficiaryEmailController = TextEditingController();
-
-  // Values captured when confirming, used after modal closes
-  String? _assignNom;
-  String? _assignTel;
-  String? _assignEmail;
-  bool _isAssigning = false;
+  // Bénéficiaire par siège : numéro de siège -> champs éditables (nom/tel/email).
+  // Vide = on applique les informations de l'utilisateur connecté par défaut.
+  final Map<int, _SeatBeneficiaryControllers> _seatBeneficiaries = {};
+  final Set<int> _expandedSeatForms = {};
 
   // Bus configuration
   int _colonnes = 4;
@@ -84,9 +90,9 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
 
   @override
   void dispose() {
-    _beneficiaryNomController.dispose();
-    _beneficiaryTelController.dispose();
-    _beneficiaryEmailController.dispose();
+    for (final b in _seatBeneficiaries.values) {
+      b.dispose();
+    }
     super.dispose();
   }
 
@@ -210,28 +216,21 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
   void _selectSeat(int seatNumber, String seatName) {
     if (seatNumber == 0 || _isSeatOccupied(seatNumber)) return;
     setState(() {
-      if (_selectedSeat == seatNumber) {
-        _selectedSeat = null;
-        _selectedSeatName = null;
+      if (_selectedSeats.containsKey(seatNumber)) {
+        _selectedSeats.remove(seatNumber);
+        _seatBeneficiaries.remove(seatNumber)?.dispose();
+        _expandedSeatForms.remove(seatNumber);
       } else {
-        _selectedSeat = seatNumber;
-        _selectedSeatName = seatName;
+        _selectedSeats[seatNumber] = seatName;
+        _seatBeneficiaries[seatNumber] = _SeatBeneficiaryControllers();
       }
     });
   }
 
+  double get _montantTotal => widget.montant * _selectedSeats.length;
+
   Future<void> _showConfirmationModal() async {
-    if (_selectedSeat == null) return;
-    final seatNumber = _selectedSeat!;
-    final seatName = _selectedSeatName!;
-    setState(() { _showAdditionalInfo = false; });
-
-    // Reset beneficiary fields
-    _beneficiaryNomController.clear();
-    _beneficiaryTelController.clear();
-    _beneficiaryEmailController.clear();
-    _isAssigning = false;
-
+    if (_selectedSeats.isEmpty) return;
 
     final shouldProceed = await showModalBottomSheet<bool>(
       context: context,
@@ -367,21 +366,51 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                       runSpacing: 6,
                                       children: [
                                         _tripChip(_formatDate(widget.dateDepart), Colors.blueGrey),
-                                        _tripChip('Siège $seatName', Colors.amber[800]!),
                                         if (widget.classe != null)
                                           _tripChip(widget.classe!, Colors.green[700]!),
                                       ],
                                     ),
                                   ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
 
-                                  // Total bar
+                            // ── Panier (lignes = tickets/réservations) ─────
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'PANIER',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey[500], letterSpacing: 1.2),
+                                ),
+                                Text(
+                                  '${_selectedSeats.length} ${_selectedSeats.length > 1 ? 'sièges' : 'siège'}',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.grey[200]!),
+                              ),
+                              child: Column(
+                                children: [
+                                  for (final entry in _selectedSeats.entries) ...[
+                                    _buildSeatCartLine(entry.key, entry.value, ctx, setModalState),
+                                    if (entry.key != _selectedSeats.keys.last)
+                                      Divider(height: 1, color: Colors.grey[100]),
+                                  ],
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                     decoration: BoxDecoration(
                                       color: Colors.green[600],
                                       borderRadius: const BorderRadius.only(
-                                        bottomLeft: Radius.circular(15),
-                                        bottomRight: Radius.circular(15),
+                                        bottomLeft: Radius.circular(13),
+                                        bottomRight: Radius.circular(13),
                                       ),
                                     ),
                                     child: Row(
@@ -389,7 +418,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                         const Text('Total à payer', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
                                         const Spacer(),
                                         Text(
-                                          '${_formatMontant(widget.montant)} FCFA',
+                                          '${_formatMontant(_montantTotal)} FCFA',
                                           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                                         ),
                                       ],
@@ -477,124 +506,17 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 12),
-
-                              // ── Assign toggle ──────────────────────────
-                              GestureDetector(
-                                onTap: () => setModalState(() => _showAdditionalInfo = !_showAdditionalInfo),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                                  decoration: BoxDecoration(
-                                    color: _showAdditionalInfo ? Colors.blue[50] : Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: _showAdditionalInfo ? Colors.blue[300]! : Colors.grey[300]!,
-                                      width: _showAdditionalInfo ? 1.5 : 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.person_add_alt_1_rounded,
-                                        size: 18,
-                                        color: _showAdditionalInfo ? Colors.blue[600] : Colors.grey[600],
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          'Attribuer à quelqu\'un d\'autre',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            color: _showAdditionalInfo ? Colors.blue[700] : Colors.grey[700],
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                      AnimatedRotation(
-                                        turns: _showAdditionalInfo ? 0.5 : 0,
-                                        duration: const Duration(milliseconds: 200),
-                                        child: Icon(
-                                          Icons.keyboard_arrow_down_rounded,
-                                          color: _showAdditionalInfo ? Colors.blue[600] : Colors.grey[500],
-                                          size: 22,
-                                        ),
-                                      ),
-                                    ],
+                              const SizedBox(height: 8),
+                              Row(children: [
+                                Icon(Icons.info_outline_rounded, size: 12, color: Colors.grey[400]),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    'Par défaut, chaque siège du panier vous est attribué. Touchez "Moi (par défaut)" sur un siège pour l\'attribuer à quelqu\'un d\'autre.',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey[400]),
                                   ),
                                 ),
-                              ),
-
-                              // ── Beneficiary form ───────────────────────
-                              AnimatedSize(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                                child: _showAdditionalInfo
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(top: 10),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[50],
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: Border.all(color: Colors.grey[200]!),
-                                        ),
-                                        child: Form(
-                                          key: _beneficiaryFormKey,
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(children: [
-                                                Icon(Icons.person_pin_circle_rounded, size: 15, color: Colors.blue[600]),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  'Informations du bénéficiaire',
-                                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.blue[700]),
-                                                ),
-                                              ]),
-                                              const SizedBox(height: 12),
-                                              _buildBeneficiaryField(
-                                                controller: _beneficiaryNomController,
-                                                label: 'Nom complet',
-                                                icon: Icons.badge_outlined,
-                                                isRequired: true,
-                                                keyboardType: TextInputType.name,
-                                              ),
-                                              const SizedBox(height: 10),
-                                              _buildBeneficiaryField(
-                                                controller: _beneficiaryTelController,
-                                                label: 'Numéro de téléphone',
-                                                icon: Icons.phone_rounded,
-                                                isRequired: true,
-                                                keyboardType: TextInputType.phone,
-                                                prefixText: '🇨🇮 +225',
-                                                maxLength: 10,
-                                              ),
-                                              const SizedBox(height: 10),
-                                              _buildBeneficiaryField(
-                                                controller: _beneficiaryEmailController,
-                                                label: 'Adresse email',
-                                                icon: Icons.email_outlined,
-                                                isRequired: false,
-                                                keyboardType: TextInputType.emailAddress,
-                                                hintText: 'Facultatif',
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Row(children: [
-                                                Icon(Icons.info_outline_rounded, size: 12, color: Colors.grey[400]),
-                                                const SizedBox(width: 5),
-                                                Text(
-                                                  'Nom complet et téléphone sont obligatoires',
-                                                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-                                                ),
-                                              ]),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                              ),
+                              ]),
                             ],
                             const SizedBox(height: 20),
                           ],
@@ -632,23 +554,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                           Expanded(
                             flex: 2,
                             child: ElevatedButton(
-                              onPressed: () {
-                                if (_showAdditionalInfo) {
-                                  if (!(_beneficiaryFormKey.currentState?.validate() ?? false)) return;
-                                  _isAssigning = true;
-                                  _assignNom = _beneficiaryNomController.text.trim();
-                                  _assignTel = _beneficiaryTelController.text.trim();
-                                  _assignEmail = _beneficiaryEmailController.text.trim().isEmpty
-                                      ? null
-                                      : _beneficiaryEmailController.text.trim();
-                                } else {
-                                  _isAssigning = false;
-                                  _assignNom = null;
-                                  _assignTel = null;
-                                  _assignEmail = null;
-                                }
-                                Navigator.of(ctx).pop(true);
-                              },
+                              onPressed: () => Navigator.of(ctx).pop(true),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _amber,
                                 foregroundColor: Colors.black87,
@@ -656,8 +562,9 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
-                              child: const Text('Confirmer et payer',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                              child: Text(
+                                  _selectedSeats.length > 1 ? 'Valider le panier' : 'Confirmer et payer',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                             ),
                           ),
                         ],
@@ -695,14 +602,21 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
       final token = await storageService.getToken();
       if (token == null) throw Exception('Vous devez être connecté pour effectuer cette action');
 
+      final sieges = _selectedSeats.keys.map((seatNumber) {
+        final b = _seatBeneficiaries.putIfAbsent(seatNumber, () => _SeatBeneficiaryControllers());
+        return {
+          'numero_place': seatNumber,
+          if (b.nom.text.trim().isNotEmpty) 'nom_complet': b.nom.text.trim(),
+          if (b.tel.text.trim().isNotEmpty) 'telephone_proprietaire': b.tel.text.trim(),
+          if (b.email.text.trim().isNotEmpty) 'email_proprietaire': b.email.text.trim(),
+        };
+      }).toList();
+
       final response = await _apiService.initierPaiement(
         token: token,
         voyageId: widget.voyageId,
         idArretVoyage: widget.arretId,
-        numeroPlace: seatNumber,
-        telephoneProprietaire: _isAssigning ? _assignTel : null,
-        nomComplet: _isAssigning ? _assignNom : null,
-        emailProprietaire: _isAssigning ? _assignEmail : null,
+        sieges: sieges,
       );
 
       if (!mounted) return;
@@ -745,6 +659,144 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     );
   }
 
+  // ── Ligne panier : siège + bénéficiaire éditable ────────────────────────
+  Widget _buildSeatCartLine(int seatNumber, String seatName, BuildContext ctx, StateSetter setModalState) {
+    final beneficiary = _seatBeneficiaries.putIfAbsent(seatNumber, () => _SeatBeneficiaryControllers());
+    final isExpanded = _expandedSeatForms.contains(seatNumber);
+    final assignedName = beneficiary.nom.text.trim();
+    final hasCustomInfo = assignedName.isNotEmpty || beneficiary.tel.text.trim().isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: _amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.event_seat_rounded, size: 16, color: Colors.amber[800]),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Siège $seatName',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87),
+                ),
+              ),
+              Text(
+                '${_formatMontant(widget.montant)} FCFA',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54),
+              ),
+              if (_selectedSeats.length > 1) ...[
+                const SizedBox(width: 6),
+                InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    setModalState(() {
+                      setState(() {
+                        _selectedSeats.remove(seatNumber);
+                        _seatBeneficiaries.remove(seatNumber)?.dispose();
+                        _expandedSeatForms.remove(seatNumber);
+                      });
+                    });
+                    if (_selectedSeats.isEmpty) Navigator.of(ctx).pop(false);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close_rounded, size: 16, color: Colors.grey[400]),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 42),
+            child: GestureDetector(
+              onTap: () => setModalState(() {
+                if (isExpanded) {
+                  _expandedSeatForms.remove(seatNumber);
+                } else {
+                  _expandedSeatForms.add(seatNumber);
+                }
+              }),
+              child: Row(
+                children: [
+                  Icon(Icons.person_outline_rounded, size: 14, color: hasCustomInfo ? Colors.blue[600] : Colors.grey[400]),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      hasCustomInfo ? assignedName.isNotEmpty ? assignedName : 'Autre passager' : 'Moi (par défaut)',
+                      style: TextStyle(fontSize: 12, color: hasCustomInfo ? Colors.blue[700] : Colors.grey[500], fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.grey[400]),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: isExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 10, left: 42),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildBeneficiaryField(
+                          controller: beneficiary.nom,
+                          label: 'Nom complet',
+                          icon: Icons.badge_outlined,
+                          isRequired: false,
+                          keyboardType: TextInputType.name,
+                          hintText: 'Par défaut : vous',
+                          onChanged: () => setModalState(() {}),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildBeneficiaryField(
+                          controller: beneficiary.tel,
+                          label: 'Téléphone',
+                          icon: Icons.phone_rounded,
+                          isRequired: false,
+                          keyboardType: TextInputType.phone,
+                          prefixText: '🇨🇮 +225',
+                          maxLength: 10,
+                          hintText: 'Par défaut : le vôtre',
+                          onChanged: () => setModalState(() {}),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildBeneficiaryField(
+                          controller: beneficiary.email,
+                          label: 'Email',
+                          icon: Icons.email_outlined,
+                          isRequired: false,
+                          keyboardType: TextInputType.emailAddress,
+                          hintText: 'Facultatif',
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBeneficiaryField({
     required TextEditingController controller,
     required String label,
@@ -754,11 +806,13 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     String? prefixText,
     String? hintText,
     int? maxLength,
+    VoidCallback? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLength: maxLength,
+      onChanged: onChanged == null ? null : (_) => onChanged(),
       style: const TextStyle(fontSize: 14, color: Colors.black87),
       decoration: InputDecoration(
         label: isRequired
@@ -857,7 +911,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     final int seatNumber = _toInt(place['numero']);
     final bool isOccupied = _isSeatOccupied(seatNumber);
     final bool isUnavailable = _toInt(place['disponible']) == 0;
-    final bool isSelected = _selectedSeat == seatNumber;
+    final bool isSelected = _selectedSeats.containsKey(seatNumber);
     final double iconSz = (seatW * 0.33).clamp(14, 20);
     final double numSz = (seatW * 0.22).clamp(9, 13);
     final double nameSz = (seatW * 0.16).clamp(7, 10);
@@ -1340,7 +1394,8 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
   }
 
   Widget _buildBottomBar() {
-    if (_selectedSeat == null) return const SizedBox.shrink();
+    if (_selectedSeats.isEmpty) return const SizedBox.shrink();
+    final count = _selectedSeats.length;
     return Container(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
@@ -1350,16 +1405,23 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
       ),
       child: Row(
         children: [
-          // Seat chip
+          // Seat count chip
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: _amber,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text(
-              _selectedSeatName ?? '',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.shopping_basket_rounded, size: 15, color: Colors.black87),
+                const SizedBox(width: 5),
+                Text(
+                  '$count',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
@@ -1367,12 +1429,12 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
             child: RichText(
               text: TextSpan(
                 children: [
-                  const TextSpan(
-                    text: '1 siège · ',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                  TextSpan(
+                    text: '$count ${count > 1 ? 'sièges' : 'siège'} · ',
+                    style: const TextStyle(fontSize: 13, color: Colors.black54),
                   ),
                   TextSpan(
-                    text: '${_formatMontant(widget.montant)} FCFA',
+                    text: '${_formatMontant(_montantTotal)} FCFA',
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                 ],
