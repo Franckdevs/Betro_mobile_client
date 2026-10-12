@@ -99,14 +99,23 @@ class _IntroState extends State<Intro> {
             bottom: 0,
             left: 0,
             right: 0,
+            // Hauteur minimale de 45 % de l'écran, mais le bloc grandit vers le
+            // haut si le contenu (titre sur 2 lignes, petits écrans) dépasse.
             child: Container(
-              height: MediaQuery.of(context).size.height * 0.45,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height * 0.45,
+              ),
+              padding: EdgeInsets.fromLTRB(
+                32,
+                24,
+                32,
+                24 + MediaQuery.of(context).padding.bottom,
+              ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Spacer(),
-
                   // Indicateurs de page
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

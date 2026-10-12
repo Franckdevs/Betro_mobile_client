@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../services/storage_service.dart';
 import '../../services/api_service.dart';
 import '../../core/widgets/shimmer_skeleton.dart';
+import '../../core/utils/error_helper.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -125,7 +126,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Impossible d\'ouvrir ${source == ImageSource.camera ? 'la caméra' : 'la galerie'}: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text('Impossible d\'ouvrir ${source == ImageSource.camera ? 'la caméra' : 'la galerie'}: ${ErrorHelper.cleanErrorMessage(e.toString())}'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -199,7 +200,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         setState(() => _pickedImage = null);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text('Erreur: ${ErrorHelper.cleanErrorMessage(e.toString())}'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -277,7 +278,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         throw Exception(response['message'] ?? 'Échec de la mise à jour');
       }
     } catch (e) {
-      setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
+      setState(() => _errorMessage = ErrorHelper.cleanErrorMessage(e.toString()));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -546,12 +547,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 : _pickedImage != null
                                     ? Image.file(_pickedImage!, fit: BoxFit.cover, width: 72, height: 72)
                                     : (_photoUrl != null && _photoUrl!.isNotEmpty && !_photoUrl!.contains('default-user'))
-                                        ? Image.network(
+                                        ? NetImage(
                                             _photoUrl!,
                                             fit: BoxFit.cover,
                                             width: 72,
                                             height: 72,
-                                            errorBuilder: (_, __, ___) => Center(
+                                            error: (_) => Center(
                                               child: Text(
                                                 _initials,
                                                 style: const TextStyle(

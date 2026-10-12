@@ -1,16 +1,82 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
 class AppShimmer extends StatelessWidget {
   final Widget child;
-  const AppShimmer({super.key, required this.child});
+  // Variante sombre pour les visionneuses plein écran sur fond noir.
+  final bool dark;
+  const AppShimmer({super.key, required this.child, this.dark = false});
 
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: const Color(0xFFE0E0E0),
-      highlightColor: const Color(0xFFF5F5F5),
+      baseColor: dark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0),
+      highlightColor: dark ? const Color(0xFF444444) : const Color(0xFFF5F5F5),
       child: child,
+    );
+  }
+}
+
+/// Image réseau avec skeleton pendant le chargement (au lieu d'un cadre vide)
+/// et mise en cache disque. À utiliser à la place de `Image.network`.
+class NetImage extends StatelessWidget {
+  final String url;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final bool dark;
+  final WidgetBuilder? error;
+
+  const NetImage(
+    this.url, {
+    super.key,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.dark = false,
+    this.error,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: width,
+      height: height,
+      fit: fit,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (_, __) => AppShimmer(
+        dark: dark,
+        child: Container(width: width, height: height, color: Colors.white),
+      ),
+      errorWidget: (ctx, __, ___) =>
+          error?.call(ctx) ?? SizedBox(width: width, height: height),
+    );
+  }
+}
+
+/// Skeleton d'une ligne libellé / valeur (sections de détail, listes).
+class SkeletonInfoLines extends StatelessWidget {
+  final int lines;
+  const SkeletonInfoLines({super.key, this.lines = 3});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppShimmer(
+      child: Column(
+        children: List.generate(
+          lines,
+          (_) => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 7),
+            child: Row(children: [
+              SkBox(width: 90, height: 12),
+              Spacer(),
+              SkBox(width: 120, height: 12),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }

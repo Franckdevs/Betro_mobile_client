@@ -6,6 +6,7 @@ import '../paiement/liste_paiements_page.dart';
 import '../auth/login_page.dart';
 import '../../services/storage_service.dart';
 import '../../services/api_service.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -214,55 +215,53 @@ class _DashboardPageState extends State<Dashboard>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
+      // Skeleton de l'accueil pendant la vérification du compte.
       return Scaffold(
-        backgroundColor: const Color(0xFF757575),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    fit: BoxFit.cover,
-                    width: 90,
-                    height: 90,
+        backgroundColor: const Color(0xFFF5F6FA),
+        body: Column(
+          children: [
+            Container(
+              color: _amber,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                  child: AppShimmer(
+                    child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: SkBox(width: 36, height: 36, radius: 18),
+                      ),
+                      const SizedBox(height: 12),
+                      const SkBox(width: 120, height: 12),
+                      const SizedBox(height: 8),
+                      const SkBox(width: 180, height: 20),
+                    ],
+                  ),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-              const SizedBox(
-                width: 36,
-                height: 36,
-                child: CircularProgressIndicator(
-                  color: _amber,
-                  strokeWidth: 3,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    AppShimmer(
+                      child: SkBox(
+                          width: double.infinity, height: 158, radius: 20),
+                    ),
+                    const SizedBox(height: 20),
+                    ...List.generate(
+                        3, (_) => const SkeletonReservationCard()),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Chargement...',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }

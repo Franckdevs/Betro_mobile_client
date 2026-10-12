@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
 import '../../core/widgets/shimmer_skeleton.dart';
+import '../../core/utils/error_helper.dart';
 import 'paiement/paiement_webview_page.dart';
 
 /// Champs éditables (nom, téléphone, email) du bénéficiaire d'un siège du panier.
@@ -60,8 +61,12 @@ class SelectionSiegePage extends StatefulWidget {
 }
 
 class _SelectionSiegePageState extends State<SelectionSiegePage> {
-  static int _toInt(dynamic v, [int fallback = 0]) =>
-      v is int ? v : int.tryParse(v?.toString() ?? '') ?? fallback;
+  // Accepte aussi true/false (booléens PostgreSQL).
+  static int _toInt(dynamic v, [int fallback = 0]) => v is int
+      ? v
+      : v is bool
+          ? (v ? 1 : 0)
+          : int.tryParse(v?.toString() ?? '') ?? fallback;
 
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
@@ -276,98 +281,161 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // ── Title ──────────────────────────────────────
-                            const Row(children: [
-                              Text(
-                                'Confirmer la réservation',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                            Row(children: [
+                              const Expanded(
+                                child: Text(
+                                  'Confirmer la réservation',
+                                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.texte),
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => Navigator.of(ctx).pop(false),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  width: 34, height: 34,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.fondSecondaire,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close_rounded, size: 18, color: AppColors.texte),
+                                ),
                               ),
                             ]),
                             const SizedBox(height: 18),
 
-                            // ── Trip card ──────────────────────────────────
+                            // ── Trip card (billet) ──────────────────────────
                             Container(
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.grey[200]!),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: AppColors.bordure),
                                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
                               ),
                               child: Column(
                                 children: [
-                                  // Route section
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                                  // ── Bandeau ambre : villes, heures, trajet ──
+                                  Container(
+                                    width: double.infinity,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primaire,
+                                      borderRadius: BorderRadius.only(topLeft: Radius.circular(17), topRight: Radius.circular(17)),
+                                    ),
+                                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                                     child: Column(
                                       children: [
-                                        // Labels DÉPART / ARRIVÉE
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text('DÉPART', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.orange[600], letterSpacing: 0.8)),
-                                            // Time chip center
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey[100],
-                                                borderRadius: BorderRadius.circular(20),
-                                              ),
-                                              child: Text(
-                                                widget.heureDepart.length >= 5 ? widget.heureDepart.substring(0, 5) : widget.heureDepart,
-                                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
-                                              ),
-                                            ),
-                                            Text('ARRIVÉE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.orange[600], letterSpacing: 0.8)),
+                                          children: const [
+                                            Text('DÉPART', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.texte, letterSpacing: 0.8)),
+                                            Text('ARRIVÉE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.texte, letterSpacing: 0.8)),
                                           ],
                                         ),
-                                        const SizedBox(height: 6),
-                                        // Cities + arrow
+                                        const SizedBox(height: 4),
                                         Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Expanded(
                                               child: Text(
                                                 widget.villeDepart,
-                                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                                                style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.texte),
                                                 overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                                              child: Column(
-                                                children: [
-                                                  const Icon(Icons.arrow_forward_rounded, color: _amber, size: 20),
-                                                  if (widget.dureeVoyage != null)
-                                                    Text(
-                                                        '${_formatDuree(widget.dureeVoyage!)} de trajet',
-                                                        style: TextStyle(fontSize: 9, color: Colors.grey[500])),
-                                                ],
                                               ),
                                             ),
                                             Expanded(
                                               child: Text(
                                                 widget.villeArrivee,
                                                 textAlign: TextAlign.right,
-                                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                                                style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.texte),
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 7, height: 7,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                border: Border.all(color: AppColors.texte, width: 1.4),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                                child: _dashedLine(AppColors.texte.withValues(alpha: 0.5)),
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 7, height: 7,
+                                              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.texte),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              widget.heureDepart.length >= 5 ? widget.heureDepart.substring(0, 5) : widget.heureDepart,
+                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.texte),
+                                            ),
+                                            const Spacer(),
+                                            if (_estimatedArrival() != null)
+                                              Text(
+                                                '≈ ${_estimatedArrival()}',
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.texte),
+                                              ),
                                           ],
                                         ),
                                       ],
                                     ),
                                   ),
 
-                                  Divider(height: 1, color: Colors.grey[150]),
-
-                                  // Chips row
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                                    child: Wrap(
-                                      spacing: 8,
-                                      runSpacing: 6,
+                                  // ── Perforation, avec encoches façon billet ──
+                                  SizedBox(
+                                    height: 16,
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      alignment: Alignment.center,
                                       children: [
-                                        _tripChip(_formatDate(widget.dateDepart), Colors.blueGrey),
-                                        if (widget.classe != null)
-                                          _tripChip(widget.classe!, Colors.green[700]!),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                                          child: _dashedLine(AppColors.bordure),
+                                        ),
+                                        const Positioned(left: -8, child: _TicketNotch()),
+                                        const Positioned(right: -8, child: _TicketNotch()),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // ── Bas de billet : date + classe + réf. ──
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Wrap(
+                                            spacing: 8,
+                                            runSpacing: 6,
+                                            crossAxisAlignment: WrapCrossAlignment.center,
+                                            children: [
+                                              _tripChip(_formatDate(widget.dateDepart), AppColors.texteAttenue),
+                                              if (widget.classe != null)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                                  decoration: BoxDecoration(color: AppColors.primaire, borderRadius: BorderRadius.circular(12)),
+                                                  child: Text(widget.classe!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.texte)),
+                                                ),
+                                              if (widget.dureeVoyage != null)
+                                                Text('${_formatDuree(widget.dureeVoyage!)} de trajet', style: TextStyle(fontSize: 11, color: AppColors.texteAttenue)),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          '#V-${widget.voyageId}',
+                                          style: TextStyle(fontSize: 11, color: Colors.grey[400], letterSpacing: 0.5),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -404,22 +472,48 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                     if (entry.key != _selectedSeats.keys.last)
                                       Divider(height: 1, color: Colors.grey[100]),
                                   ],
+                                  Divider(height: 1, color: Colors.grey[100]),
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              '${_selectedSeats.length} × siège${widget.classe != null ? ' ${widget.classe}' : ''}',
+                                              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                            ),
+                                            const Spacer(),
+                                            Text('${_formatMontant(_montantTotal)} FCFA', style: const TextStyle(fontSize: 13, color: AppColors.texte, fontWeight: FontWeight.w600)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Text('Frais de service', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                                            const Spacer(),
+                                            Text('0 FCFA', style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green[600],
-                                      borderRadius: const BorderRadius.only(
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primaire,
+                                      borderRadius: BorderRadius.only(
                                         bottomLeft: Radius.circular(13),
                                         bottomRight: Radius.circular(13),
                                       ),
                                     ),
                                     child: Row(
                                       children: [
-                                        const Text('Total à payer', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                                        const Text('Total à payer', style: TextStyle(color: AppColors.texte, fontSize: 13, fontWeight: FontWeight.w600)),
                                         const Spacer(),
                                         Text(
                                           '${_formatMontant(_montantTotal)} FCFA',
-                                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                          style: const TextStyle(color: AppColors.texte, fontSize: 16, fontWeight: FontWeight.bold),
                                         ),
                                       ],
                                     ),
@@ -431,13 +525,16 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
 
                             // ── Passenger section ──────────────────────────
                             if (_isLoadingUserInfo)
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(_amber),
-                                    strokeWidth: 3,
-                                  ),
+                              const AppShimmer(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SkBox(width: 140, height: 12),
+                                    SizedBox(height: 12),
+                                    SkBox(width: double.infinity, height: 52, radius: 12),
+                                    SizedBox(height: 10),
+                                    SkBox(width: double.infinity, height: 52, radius: 12),
+                                  ],
                                 ),
                               )
                             else ...[
@@ -497,11 +594,11 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: Colors.green[50],
+                                        color: AppColors.primaire.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: Colors.green[200]!),
+                                        border: Border.all(color: AppColors.primaire.withValues(alpha: 0.5)),
                                       ),
-                                      child: Text('Moi', style: TextStyle(fontSize: 12, color: Colors.green[700], fontWeight: FontWeight.w700)),
+                                      child: const Text('Moi', style: TextStyle(fontSize: 12, color: AppColors.texte, fontWeight: FontWeight.w700)),
                                     ),
                                   ],
                                 ),
@@ -633,7 +730,7 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
       if (!mounted) return;
       navigator.pop(); // close loader
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+        SnackBar(content: Text('Erreur: ${ErrorHelper.cleanErrorMessage(e.toString())}'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
       );
     }
   }
@@ -657,6 +754,51 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
       ),
       child: Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
     );
+  }
+
+  /// Ligne en pointillés (perforation du billet / tracé du trajet) qui
+  /// remplit toute la largeur disponible.
+  Widget _dashedLine(Color color, {double height = 1.4}) {
+    return SizedBox(
+      height: height,
+      child: LayoutBuilder(builder: (context, constraints) {
+        const dashWidth = 6.0;
+        const dashSpace = 4.0;
+        final count = (constraints.maxWidth / (dashWidth + dashSpace)).floor().clamp(0, 200);
+        return Row(
+          children: List.generate(
+            count,
+            (_) => Padding(
+              padding: const EdgeInsets.only(right: dashSpace),
+              child: Container(
+                width: dashWidth,
+                height: height,
+                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  /// Heure d'arrivée estimée (départ + durée du trajet), ou `null` si l'une
+  /// des deux informations manque.
+  String? _estimatedArrival() {
+    final duree = widget.dureeVoyage;
+    if (duree == null) return null;
+    final hp = widget.heureDepart.split(':');
+    final dp = duree.split(':');
+    if (hp.length < 2 || dp.length < 2) return null;
+    final h = int.tryParse(hp[0]);
+    final m = int.tryParse(hp[1]);
+    final dh = int.tryParse(dp[0]);
+    final dm = int.tryParse(dp[1]);
+    if (h == null || m == null || dh == null || dm == null) return null;
+    final total = (h * 60 + m + dh * 60 + dm) % (24 * 60);
+    final arrH = total ~/ 60;
+    final arrM = total % 60;
+    return '${arrH.toString().padLeft(2, '0')}:${arrM.toString().padLeft(2, '0')}';
   }
 
   // ── Ligne panier : siège + bénéficiaire éditable ────────────────────────
@@ -759,29 +901,26 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
                         _buildBeneficiaryField(
                           controller: beneficiary.nom,
                           label: 'Nom complet',
-                          icon: Icons.badge_outlined,
                           isRequired: false,
                           keyboardType: TextInputType.name,
                           hintText: 'Par défaut : vous',
                           onChanged: () => setModalState(() {}),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
                         _buildBeneficiaryField(
                           controller: beneficiary.tel,
                           label: 'Téléphone',
-                          icon: Icons.phone_rounded,
                           isRequired: false,
                           keyboardType: TextInputType.phone,
-                          prefixText: '🇨🇮 +225',
+                          prefixText: '+225',
                           maxLength: 10,
                           hintText: 'Par défaut : le vôtre',
                           onChanged: () => setModalState(() {}),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
                         _buildBeneficiaryField(
                           controller: beneficiary.email,
                           label: 'Email',
-                          icon: Icons.email_outlined,
                           isRequired: false,
                           keyboardType: TextInputType.emailAddress,
                           hintText: 'Facultatif',
@@ -800,7 +939,6 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
   Widget _buildBeneficiaryField({
     required TextEditingController controller,
     required String label,
-    required IconData icon,
     required bool isRequired,
     TextInputType keyboardType = TextInputType.text,
     String? prefixText,
@@ -808,57 +946,69 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
     int? maxLength,
     VoidCallback? onChanged,
   }) {
-    return TextFormField(
+    final field = TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLength: maxLength,
       onChanged: onChanged == null ? null : (_) => onChanged(),
-      style: const TextStyle(fontSize: 14, color: Colors.black87),
+      style: const TextStyle(fontSize: 14, color: AppColors.texte),
       decoration: InputDecoration(
-        label: isRequired
-            ? RichText(
-                text: TextSpan(
-                  text: label,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  children: const [
-                    TextSpan(text: ' *', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              )
-            : null,
-        labelText: isRequired ? null : label,
         hintText: hintText,
-        labelStyle: TextStyle(fontSize: 13, color: Colors.grey[600]),
-        prefixIcon: prefixText != null
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-              child: Text(prefixText, style: const TextStyle(fontSize: 13)),
-            )
-          : Icon(icon, size: 18, color: Colors.blue[400]),
+        hintStyle: TextStyle(fontSize: 14, color: Colors.grey[400]),
         counterText: '',
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.fondSecondaire,
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.blue[100]!),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.bordure),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.blue[400]!, width: 1.5),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaire, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.red),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.red, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),
       validator: isRequired
         ? (v) => (v == null || v.trim().isEmpty) ? 'Ce champ est obligatoire' : null
         : null,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.texte)),
+          if (isRequired)
+            const Text(' *', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+          else
+            Text(' · facultatif', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+        ]),
+        const SizedBox(height: 6),
+        if (prefixText != null)
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.fondSecondaire,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.bordure),
+              ),
+              child: Text(prefixText, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.texte)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: field),
+          ])
+        else
+          field,
+      ],
     );
   }
 
@@ -1366,13 +1516,8 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
           const SizedBox(width: 8),
           _buildDetailChip(Icons.event_seat, widget.classe!),
         ],
-        if (!widget.disponibleToujours) ...[
-          const SizedBox(width: 8),
-          _buildDetailChip(Icons.calendar_today_rounded, _formatDate(widget.dateDepart)),
-        ] else ...[
-          const SizedBox(width: 8),
-          _buildDetailChip(Icons.repeat_rounded, 'Tous les jours'),
-        ],
+        const SizedBox(width: 8),
+        _buildDetailChip(Icons.calendar_today_rounded, _formatDate(widget.dateDepart)),
       ]),
     );
   }
@@ -1534,6 +1679,26 @@ class _SelectionSiegePageState extends State<SelectionSiegePage> {
           // ── Bottom bar ────────────────────────────────────────────────────
           _buildBottomBar(),
         ],
+      ),
+    );
+  }
+}
+
+/// Petite encoche semi-circulaire à l'emplacement de la perforation du
+/// billet, pour l'effet "ticket détachable". Sa couleur reprend celle du
+/// fond de la feuille (blanc) derrière laquelle le billet est posé.
+class _TicketNotch extends StatelessWidget {
+  const _TicketNotch();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.bordure),
       ),
     );
   }

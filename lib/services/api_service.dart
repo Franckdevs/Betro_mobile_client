@@ -11,7 +11,10 @@ import '../core/utils/logger.dart';
 import 'storage_service.dart';
 
 class ApiService {
-  static const String baseUrl = "https://betro.tresormoney.ci/api";
+  // Serveur de dev interne (réseau BMI / VPN uniquement, http sans TLS).
+  static const String baseUrl = "https://betro.ci/api";
+  //static const String baseUrl = "https://betro.tresormoney.ci/api";
+  //static const String baseUrl = "http://ci-betro-web-v1.dev.bmi.local/api";
   //static const String baseUrl = "http://172.20.10.7:8000/api";
 
   // ── Logger centralisé ─────────────────────────────────────────────────────
@@ -200,7 +203,7 @@ class ApiService {
       }
     } catch (e) {
       _logErr(method, url, e);
-      return {'success': false, 'message': 'Erreur de connexion: $e'};
+      return {'success': false, 'message': 'Erreur de connexion: ${ErrorHelper.cleanErrorMessage(e.toString())}'};
     }
   }
 
@@ -250,7 +253,7 @@ class ApiService {
       }
     } catch (e) {
       _logErr(method, url, e);
-      return {'success': false, 'message': 'Erreur de connexion: $e'};
+      return {'success': false, 'message': 'Erreur de connexion: ${ErrorHelper.cleanErrorMessage(e.toString())}'};
     }
   }
 
@@ -276,7 +279,7 @@ class ApiService {
       }
     } catch (e) {
       _logErr(method, url, e);
-      throw Exception('Erreur de connexion : $e');
+      throw Exception('Erreur de connexion : ${ErrorHelper.cleanErrorMessage(e.toString())}');
     }
   }
 
@@ -322,7 +325,7 @@ class ApiService {
       }
     } catch (e) {
       _logErr(method, url, e);
-      throw Exception('Erreur de connexion : $e');
+      throw Exception('Erreur de connexion : ${ErrorHelper.cleanErrorMessage(e.toString())}');
     }
   }
 

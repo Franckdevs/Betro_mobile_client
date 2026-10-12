@@ -67,8 +67,8 @@ class Gare {
       description: json['description'] as String? ?? '',
       heureOuverture: _trimTime(json['heure_ouverture'] as String? ?? ''),
       heureFermeture: _trimTime(json['heure_fermeture'] as String? ?? ''),
-      parkingDisponible: json['parking_disponible'].toString() == '1',
-      wifiDisponible: json['wifi_disponible'].toString() == '1',
+      parkingDisponible: ['1', 'true'].contains(json['parking_disponible'].toString()),
+      wifiDisponible: ['1', 'true'].contains(json['wifi_disponible'].toString()),
       ville: json['ville'] is Map
           ? (json['ville']?['nom_ville'] as String?) ?? 'Inconnue'
           : 'Inconnue',

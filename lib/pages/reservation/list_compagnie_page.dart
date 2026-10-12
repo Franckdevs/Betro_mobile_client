@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/compagnie_model.dart';
 import '../../services/api_service.dart';
 import '../../core/widgets/shimmer_skeleton.dart';
+import '../../core/utils/error_helper.dart';
 import 'detail_compagnie_page.dart';
 
 class ListCompagniePage extends StatefulWidget {
@@ -72,7 +73,7 @@ class _ListCompagniePageState extends State<ListCompagniePage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur lors du chargement: $e'),
+            content: Text('Erreur lors du chargement: ${ErrorHelper.cleanErrorMessage(e.toString())}'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -220,13 +221,7 @@ class _ListCompagniePageState extends State<ListCompagniePage>
                             itemCount: list.length + (_isLoadingMore ? 1 : 0),
                             itemBuilder: (context, index) {
                               if (index >= list.length) {
-                                return const Center(
-                                  child: CircularProgressIndicator(
-                                    valueColor:
-                                        AlwaysStoppedAnimation<Color>(_amber),
-                                    strokeWidth: 2.5,
-                                  ),
-                                );
+                                return const SkeletonCompagnieTile();
                               }
                               return _StaggerItem(
                                 index: index,
@@ -397,10 +392,12 @@ class _ListCompagniePageState extends State<ListCompagniePage>
                   ),
                   child: hasLogo
                       ? ClipOval(
-                          child: Image.network(
+                          child: NetImage(
                             compagnie.logoUrl!,
+                            width: double.infinity,
+                            height: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
+                            error: (_) => Center(
                               child: Text(
                                 initials,
                                 style: const TextStyle(

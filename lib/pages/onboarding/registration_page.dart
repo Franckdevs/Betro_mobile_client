@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../models/inscription_model.dart';
@@ -327,12 +328,12 @@ class _InscriptionPageState extends State<Inscription>
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(3),
-                child: Image.network(
+                child: NetImage(
                   'https://flagcdn.com/w40/ci.png',
                   width: 24,
                   height: 16,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
+                  error: (_) =>
                       const Icon(Iconsax.call, size: 20, color: Colors.grey),
                 ),
               ),

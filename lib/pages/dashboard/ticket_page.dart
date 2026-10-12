@@ -12,6 +12,7 @@ import '../../services/storage_service.dart';
 import '../paiement/detail_paiement_page.dart';
 import 'gare_map_page.dart';
 import '../../core/utils/logger.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
 
 class TicketPage extends StatefulWidget {
   final Map<String, dynamic> reservation;
@@ -260,10 +261,6 @@ Future<void> _startNavigation({
                     child: Text('Mon Billet',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                   ),
-                  if (_isLoadingExtra)
-                    const SizedBox(width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.black54))),
                 ]),
               ),
             ),
@@ -466,23 +463,15 @@ Future<void> _startNavigation({
                                         child: Container(
                                           width: double.infinity,
                                           color: const Color(0xFFF1F3F5),
-                                          child: Image.network(
+                                          child: NetImage(
                                             photos.first,
+                                            width: double.infinity,
+                                            height: double.infinity,
                                             // `contain` garde la photo entière visible.
                                             // `cover` sur une hauteur de 100 px rognait
                                             // le toit et les roues du bus.
                                             fit: BoxFit.contain,
-                                            loadingBuilder: (_, child, progress) =>
-                                                progress == null
-                                                    ? child
-                                                    : const Center(
-                                                        child: SizedBox(
-                                                          width: 22,
-                                                          height: 22,
-                                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                                        ),
-                                                      ),
-                                            errorBuilder: (_, __, ___) => const Center(
+                                            error: (_) => const Center(
                                               child: Icon(Icons.directions_bus_rounded,
                                                   color: Colors.black26, size: 32),
                                             ),
@@ -539,10 +528,12 @@ Future<void> _startNavigation({
                                               ),
                                             ],
                                           ),
-                                          child: Image.network(
+                                          child: NetImage(
                                             photos[i],
+                                            width: double.infinity,
+                                            height: double.infinity,
                                             fit: BoxFit.contain,
-                                            errorBuilder: (_, __, ___) => const Icon(
+                                            error: (_) => const Icon(
                                                 Icons.directions_bus_rounded,
                                                 color: Colors.black26, size: 16),
                                           ),
@@ -602,11 +593,11 @@ Future<void> _startNavigation({
                                 radius: 36,
                                 backgroundColor: Colors.grey[300],
                                 child: ClipOval(
-                                  child: Image.network(
+                                  child: NetImage(
                                     url,
                                     width: 72, height: 72,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
+                                    error: (_) =>
                                         const Icon(Icons.person, size: 36, color: Colors.white),
                                   ),
                                 ),
@@ -657,11 +648,11 @@ Future<void> _startNavigation({
                                 radius: 36,
                                 backgroundColor: Colors.grey[300],
                                 child: ClipOval(
-                                  child: Image.network(
+                                  child: NetImage(
                                     url,
                                     width: 72, height: 72,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
+                                    error: (_) =>
                                         const Icon(Icons.person, size: 36, color: Colors.white),
                                   ),
                                 ),
@@ -740,6 +731,22 @@ Future<void> _startNavigation({
                           _infractionBadge(companyInfractions),
                       ]);
                     }),
+                  )
+                else if (_isLoadingExtra)
+                  _buildSection(
+                    icon: Icons.business_rounded,
+                    title: 'Compagnie',
+                    color: const Color(0xFFE65100),
+                    expanded: true,
+                    showToggle: false,
+                    onToggle: () {},
+                    child: const Column(children: [
+                      AppShimmer(child: SkBox(width: 84, height: 84, radius: 42)),
+                      SizedBox(height: 12),
+                      AppShimmer(child: SkBox(width: 160, height: 16)),
+                      SizedBox(height: 12),
+                      SkeletonInfoLines(lines: 3),
+                    ]),
                   ),
 
                 const SizedBox(height: 10),
@@ -916,7 +923,8 @@ Future<void> _startNavigation({
 
   // ── Helpers UI ────────────────────────────────────────────────────────────
 
-  static const String _imageBase = "http://192.168.95.123:8000";
+  // Même serveur que l'API (sans le suffixe /api).
+  static final String _imageBase = ApiService.baseUrl.replaceAll(RegExp(r'/api$'), '');
 
   List<String> _buildBusPhotoUrls(List<String>? fromExtra, List<String>? fromReservation) {
     final raw = (fromExtra?.isNotEmpty == true) ? fromExtra! : (fromReservation ?? []);
@@ -953,8 +961,10 @@ Future<void> _startNavigation({
               minScale: 0.5,
               maxScale: 4.0,
               child: Center(
-                child: Image.network(urls[i], fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
+                child: NetImage(urls[i], fit: BoxFit.contain, dark: true,
+                    width: MediaQuery.of(ctx).size.width,
+                    height: MediaQuery.of(ctx).size.height * 0.8,
+                    error: (_) =>
                         const Icon(Icons.error, color: Colors.red, size: 50)),
               ),
             ),
@@ -978,8 +988,10 @@ Future<void> _startNavigation({
             Center(child: Hero(
               tag: url,
               child: InteractiveViewer(
-                child: Image.network(url, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white, size: 50)),
+                child: NetImage(url, fit: BoxFit.contain, dark: true,
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height * 0.8,
+                  error: (_) => const Icon(Icons.broken_image, color: Colors.white, size: 50)),
               ),
             )),
             Positioned(
@@ -1038,10 +1050,12 @@ Future<void> _startNavigation({
                   // Marge intérieure : sans elle, un logo carré viendrait
                   // toucher l'anneau et paraîtrait rogné.
                   padding: const EdgeInsets.all(11),
-                  child: Image.network(
+                  child: NetImage(
                     logoUrl,
+                    width: double.infinity,
+                    height: double.infinity,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    error: (_) => const Icon(
                         Icons.business_rounded, color: Colors.black26, size: 28),
                   ),
                 ),

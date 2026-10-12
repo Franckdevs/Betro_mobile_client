@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../services/location_sharing_service.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
 
 class TrackLocationPage extends StatefulWidget {
   final String code;
@@ -259,14 +260,23 @@ class _TrackLocationPageState extends State<TrackLocationPage> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          CircularProgressIndicator(color: Color(0xFFFFC107)),
-          SizedBox(height: 16),
-          Text('Recherche de la position…',
-              style: TextStyle(color: Colors.black54)),
-        ]),
-      );
+      // Skeleton de la carte en attendant la première position.
+      return Stack(children: [
+        Positioned.fill(
+          child: AppShimmer(child: Container(color: Colors.white)),
+        ),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text('Recherche de la position…',
+                style: TextStyle(color: Colors.black54)),
+          ),
+        ),
+      ]);
     }
     if (_hasError) {
       return Center(
