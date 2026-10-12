@@ -10,6 +10,8 @@ import 'edit_profile_page.dart';
 import 'track_location_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../auth/login_page.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
+import '../../core/utils/error_helper.dart';
 
 class ParametrePage extends StatefulWidget {
   const ParametrePage({super.key});
@@ -153,14 +155,12 @@ class _ParametrePageState extends State<ParametrePage> {
                  
                   const SizedBox(height: 24),
                   if (loading)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.whatsapp),
-                          strokeWidth: 2.5,
-                        ),
-                      ),
+                    const AppShimmer(
+                      child: Column(children: [
+                        SkBox(width: double.infinity, height: 54, radius: 14),
+                        SizedBox(height: 12),
+                        SkBox(width: double.infinity, height: 54, radius: 14),
+                      ]),
                     )
                   else if (error != null)
                     Center(
@@ -334,7 +334,7 @@ class _ParametrePageState extends State<ParametrePage> {
       Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur lors de la déconnexion: $e'),
+          content: Text('Erreur lors de la déconnexion: ${ErrorHelper.cleanErrorMessage(e.toString())}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -430,12 +430,12 @@ class _ParametrePageState extends State<ParametrePage> {
                     ),
                     child: ClipOval(
                       child: (photoUrl != null && photoUrl.isNotEmpty && !photoUrl.contains('default-user'))
-                          ? Image.network(
+                          ? NetImage(
                               photoUrl,
                               fit: BoxFit.cover,
                               width: 72,
                               height: 72,
-                              errorBuilder: (_, __, ___) => Center(
+                              error: (_) => Center(
                                 child: Text(
                                   _getInitials(nom, prenom),
                                   style: const TextStyle(
@@ -706,7 +706,7 @@ class _ParametrePageState extends State<ParametrePage> {
                   final h2 = await LocationSharingService.getShareHistory();
                   setSheet(() { isStarting = false; code = result; shareHistory = h2; });
                 } catch (e) {
-                  setSheet(() { isStarting = false; error = e.toString().replaceFirst('Exception: ', ''); shareHistory = history; });
+                  setSheet(() { isStarting = false; error = ErrorHelper.cleanErrorMessage(e.toString()); shareHistory = history; });
                 }
               });
             }
@@ -1786,10 +1786,17 @@ class _ParametrePageState extends State<ParametrePage> {
                     // ── Contenu ──
                     Expanded(
                       child: loading
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(_amber),
+                          ? ListView.separated(
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                              itemCount: 6,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (_, __) => const AppShimmer(
+                                child: SkBox(
+                                    width: double.infinity,
+                                    height: 56,
+                                    radius: 14),
                               ),
                             )
                           : error != null

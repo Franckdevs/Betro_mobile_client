@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/app_date_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:betro/services/paiement_service.dart';
@@ -238,12 +239,11 @@ class _ListePaiementsPageState extends State<ListePaiementsPage>
       builder: (_) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           Future<void> pickDate(bool isDebut) async {
-            final picked = await showDatePicker(
+            final picked = await showAppDatePicker(
               context: ctx,
               initialDate: (isDebut ? tmpDebut : tmpFin) ?? today,
               firstDate: DateTime(2020),
               lastDate: DateTime(2030),
-              locale: const Locale('fr', 'FR'),
             );
             if (picked != null) {
               setSheetState(() {

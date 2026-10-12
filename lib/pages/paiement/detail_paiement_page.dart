@@ -12,6 +12,8 @@ import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import '../dashboard/ticket_page.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
+import '../../core/utils/error_helper.dart';
 
 class DetailPaiementPage extends StatefulWidget {
   final int paiementId;
@@ -92,14 +94,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
     }
   }
 
-  String _cleanErrorMessage(String msg) {
-    return msg
-        .replaceAll(RegExp(r'https?://[^\s]+'), '[URL]')
-        .replaceAll(RegExp(r'\b[a-zA-Z0-9]{20,}\b'), '[TOKEN]')
-        .replaceAll(RegExp(r'ClientException.*'), 'Erreur de connexion réseau')
-        .replaceAll(RegExp(r'Failed host lookup.*'), 'Serveur inaccessible')
-        .replaceAll(RegExp(r'No address associated.*'), 'Serveur inaccessible');
-  }
+  String _cleanErrorMessage(String msg) => ErrorHelper.cleanErrorMessage(msg);
 
   String _formatDate(String dateStr) {
     try {
@@ -142,8 +137,9 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
               height: MediaQuery.of(context).size.height * 0.6,
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
               child: ClipRRect(borderRadius: BorderRadius.circular(20),
-                child: Image.network(url, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                child: NetImage(url, fit: BoxFit.contain,
+                  width: double.infinity, height: double.infinity,
+                  error: (_) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(Icons.broken_image, size: 64, color: Colors.grey.shade400),
                     const SizedBox(height: 16),
                     Text('Image non disponible', style: TextStyle(color: Colors.grey.shade600)),
@@ -481,8 +477,8 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
                       border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: ClipRRect(borderRadius: BorderRadius.circular(8),
-                      child: Image.network(c['logo_compagnies'], height: 72, fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Icon(Icons.business, size: 48, color: Colors.grey.shade400)),
+                      child: NetImage(c['logo_compagnies'], width: 72, height: 72, fit: BoxFit.contain,
+                        error: (_) => Icon(Icons.business, size: 48, color: Colors.grey.shade400)),
                     ),
                   ),
                 )),
@@ -623,13 +619,13 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(children: [
-              _sheetRow(Icons.tag_rounded, 'Référence', ref),
+              _sheetRow('Référence', ref),
               const SizedBox(height: 10),
-              _sheetRow(Icons.event_seat_rounded, 'Place', 'N° $place'),
+              _sheetRow('Place', 'N° $place'),
               const SizedBox(height: 10),
-              _sheetRow(Icons.payments_rounded, 'Montant', '${_formatMontant(montant)} FCFA'),
+              _sheetRow('Montant', '${_formatMontant(montant)} FCFA'),
               const SizedBox(height: 10),
-              _sheetRow(Icons.route_rounded, 'Trajet', '$villeDepart → $villeArrivee'),
+              _sheetRow('Trajet', '$villeDepart → $villeArrivee'),
             ]),
           ),
           const SizedBox(height: 24),
@@ -656,13 +652,11 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
     );
   }
 
-  Widget _sheetRow(IconData icon, String label, String value) {
+  Widget _sheetRow(String label, String value) {
     return Row(children: [
-      Icon(icon, size: 16, color: Colors.grey[400]),
-      const SizedBox(width: 10),
       Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-      const Spacer(),
-      Flexible(
+      const SizedBox(width: 16),
+      Expanded(
         child: Text(value,
             textAlign: TextAlign.right,
             overflow: TextOverflow.ellipsis,
@@ -760,7 +754,10 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                    pw.Text('BETRO', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
+                    pw.Text('BETRO', style: pw.TextStyle(fontSize: 13, color: PdfColor.fromHex('#333333'))),
+                    pw.SizedBox(height: 2),
+                    if (nomCompagnie != 'N/A')
+                      pw.Text(nomCompagnie, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
                     pw.SizedBox(height: 4),
                     pw.Text('Reçu de paiement', style: pw.TextStyle(fontSize: 13, color: PdfColor.fromHex('#333333'))),
                   ]),
@@ -835,38 +832,6 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
             ),
             pw.SizedBox(height: 20),
 
-            // ── Compagnie ──
-            if (nomCompagnie != 'N/A') ...[
-              pw.Text('COMPAGNIE',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold,
-                      color: labelGrey, letterSpacing: 1.2)),
-              pw.SizedBox(height: 10),
-              pw.Container(
-                padding: const pw.EdgeInsets.all(16),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColor.fromHex('#EEEEEE')),
-                  borderRadius: pw.BorderRadius.circular(12),
-                ),
-                child: logoImage == null
-                    ? infoRow('Nom', nomCompagnie)
-                    : pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                        pw.Container(
-                          width: 40,
-                          height: 40,
-                          padding: const pw.EdgeInsets.all(3),
-                          decoration: pw.BoxDecoration(
-                            color: lightGrey,
-                            shape: pw.BoxShape.circle,
-                          ),
-                          child: pw.ClipOval(child: pw.Image(logoImage, fit: pw.BoxFit.contain)),
-                        ),
-                        pw.SizedBox(width: 14),
-                        pw.Expanded(child: infoRow('Nom', nomCompagnie)),
-                      ]),
-              ),
-              pw.SizedBox(height: 20),
-            ],
-
             // ── Pied de page ──
             pw.SizedBox(height: 30),
             pw.Divider(color: PdfColor.fromHex('#EEEEEE')),
@@ -888,7 +853,7 @@ class _DetailPaiementPageState extends State<DetailPaiementPage>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur PDF: ${e.toString().length > 80 ? e.toString().substring(0, 80) : e.toString()}'),
+          content: Text('Erreur PDF: ${ErrorHelper.cleanErrorMessage(e.toString())}'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 5),

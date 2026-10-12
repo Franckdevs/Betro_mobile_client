@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
+import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
@@ -254,13 +256,10 @@ class _EmailPageState extends State<Email>
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 250),
                             child: _usePhone
-                                ? _buildField(
+                                ? _buildPhoneField(
                                     key: const ValueKey('phone'),
                                     controller: _phoneController,
-                                    label: 'Numéro de téléphone',
-                                    icon: Iconsax.call,
                                     focusNode: _phoneFocusNode,
-                                    keyboardType: TextInputType.phone,
                                   )
                                 : _buildField(
                                     key: const ValueKey('email'),
@@ -443,6 +442,79 @@ class _EmailPageState extends State<Email>
     );
   }
 
+  // ── Champ téléphone avec préfixe +225 ─────────────────────────────────────
+
+  Widget _buildPhoneField({
+    required Key key,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+  }) {
+    return TextFormField(
+      key: key,
+      controller: controller,
+      focusNode: focusNode,
+      keyboardType: TextInputType.phone,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(10),
+      ],
+      style: const TextStyle(color: Colors.black87, fontSize: 15),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white,
+        labelText: 'Numéro de téléphone',
+        labelStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+        floatingLabelStyle:
+            const TextStyle(color: Colors.black87, fontSize: 13),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: NetImage(
+                  'https://flagcdn.com/w40/ci.png',
+                  width: 24,
+                  height: 16,
+                  fit: BoxFit.cover,
+                  error: (_) =>
+                      const Icon(Iconsax.call, size: 20, color: Colors.grey),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '+225',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(width: 1, height: 20, color: Colors.grey.shade300),
+            ],
+          ),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 0),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.amber, width: 1.8),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
   // ── Ouverture politique via API ────────────────────────────────────────────
 
   Future<void> _openPolicy(String type) async {
@@ -553,16 +625,20 @@ class _PolicyLoadingSheet extends StatelessWidget {
         color: Color(0xFF616161),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: const Center(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+      // Skeleton du texte de la politique en attendant l'API.
+      child: const AppShimmer(
+        dark: true,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircularProgressIndicator(color: Colors.amber, strokeWidth: 2.5),
+            SkBox(width: 180, height: 18),
             SizedBox(height: 16),
-            Text(
-              'Chargement…',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
-            ),
+            SkBox(width: double.infinity, height: 12),
+            SizedBox(height: 8),
+            SkBox(width: double.infinity, height: 12),
+            SizedBox(height: 8),
+            SkBox(width: 220, height: 12),
           ],
         ),
       ),

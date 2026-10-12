@@ -1,22 +1,61 @@
 import 'package:flutter/material.dart';
 
 class ErrorHelper {
-  // Nettoie les messages d'erreur pour cacher les URLs et données sensibles
+  // Convertit n'importe quelle erreur technique (URL, exception système,
+  // stacktrace...) en un message générique sûr à afficher à l'utilisateur.
+  // Ne renvoie JAMAIS un fragment de l'erreur d'origine : soit elle est
+  // reconnue comme un message métier propre (déjà rédigé côté app/serveur),
+  // soit elle est remplacée intégralement par un message généré ici.
   static String cleanErrorMessage(String errorMessage) {
-    // Remplacer les URLs par un message générique
-    String cleaned = errorMessage.replaceAll(RegExp(r'https?://[^\s]+'), '[URL]');
-    
-    // Remplacer les tokens par un message générique
-    cleaned = cleaned.replaceAll(RegExp(r'\b[a-zA-Z0-9]{20,}\b'), '[TOKEN]');
-    
-    // Remplacer les informations sensibles
-    cleaned = cleaned.replaceAll(RegExp(r'ClientException with SocketException.*'), 'Erreur de connexion réseau');
-    cleaned = cleaned.replaceAll(RegExp(r'Failed host lookup.*'), 'Serveur inaccessible');
-    cleaned = cleaned.replaceAll(RegExp(r'No address associated with hostname.*'), 'Serveur inaccessible');
-    cleaned = cleaned.replaceAll(RegExp(r'OS Error.*'), 'Erreur système');
-    cleaned = cleaned.replaceAll(RegExp(r'SocketException.*'), 'Erreur de connexion réseau');
-    
-    return cleaned;
+    final lower = errorMessage.toLowerCase();
+
+    bool has(List<String> needles) => needles.any(lower.contains);
+
+    if (has(['handshake', 'certificate', 'certificat', 'ssl', 'tls'])) {
+      return 'Connexion sécurisée impossible pour le moment. Réessayez dans quelques instants.';
+    }
+    if (has(['timeoutexception', 'timed out', 'délai dépassé'])) {
+      return 'Le serveur met trop de temps à répondre. Réessayez.';
+    }
+    if (has([
+      'socketexception',
+      'failed host lookup',
+      'no address associated',
+      'network is unreachable',
+      'connection refused',
+      'connection reset',
+      'clientexception',
+    ])) {
+      return 'Impossible de se connecter au serveur. Vérifiez votre connexion internet.';
+    }
+    if (has(['formatexception', 'unexpected character', 'invalid json'])) {
+      return 'Réponse du serveur invalide. Réessayez plus tard.';
+    }
+    if (has(['401', 'unauthorized', 'session expirée', 'non connecté'])) {
+      return 'Votre session a expiré. Veuillez vous reconnecter.';
+    }
+    if (has(['404', 'not found', 'introuvable'])) {
+      return "L'information demandée est introuvable.";
+    }
+    if (has(['500', 'internal server error'])) {
+      return 'Le serveur rencontre un problème. Réessayez plus tard.';
+    }
+
+    // Toute trace d'URL, de nom de classe d'exception ou de stacktrace
+    // signale un message technique non catégorisé ci-dessus : on ne le
+    // laisse jamais remonter tel quel.
+    final looksTechnical = errorMessage.contains(RegExp(r'https?://', caseSensitive: false)) ||
+        errorMessage.contains(RegExp(r'\bException\b')) ||
+        errorMessage.contains('#0') || // signature de stacktrace Dart
+        errorMessage.contains(RegExp(r'\.(dart|cc):\d+'));
+
+    if (looksTechnical) {
+      return 'Une erreur est survenue. Veuillez réessayer.';
+    }
+
+    // Sinon, il s'agit déjà d'un message métier propre (ex. fourni par
+    // l'API : "Code OTP invalide ou expiré.") : on le garde tel quel.
+    return errorMessage.replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
   }
 
   // Affiche un SnackBar avec un message d'erreur propre

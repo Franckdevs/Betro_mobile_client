@@ -1,5 +1,6 @@
 import 'api_service.dart';
 import 'storage_service.dart';
+import '../core/utils/error_helper.dart';
 
 class PaiementService {
   final ApiService _apiService = ApiService();
@@ -25,9 +26,7 @@ class PaiementService {
         );
       }
     } catch (e) {
-      throw Exception(
-        'Erreur lors de la récupération des paiements: ${e.toString()}',
-      );
+      throw Exception(ErrorHelper.cleanErrorMessage(e.toString()));
     }
   }
 
@@ -59,7 +58,7 @@ class PaiementService {
         );
       }
     } catch (e) {
-      throw Exception('Erreur: ${e.toString()}');
+      throw Exception(ErrorHelper.cleanErrorMessage(e.toString()));
     }
   }
 }

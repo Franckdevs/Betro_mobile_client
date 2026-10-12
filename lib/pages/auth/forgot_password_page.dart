@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../services/api_service.dart';
@@ -37,7 +38,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   String? _sentPhone;
 
   Timer? _countdownTimer;
-  int _secondsLeft = 120;
+  int _secondsLeft = 600;
 
   @override
   void initState() {
@@ -71,7 +72,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
 
   void _startCountdown() {
     _countdownTimer?.cancel();
-    setState(() => _secondsLeft = 120);
+    setState(() => _secondsLeft = 600);
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
         t.cancel();
@@ -111,6 +112,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_usePhone) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              "La réinitialisation par numéro de téléphone n'est pas encore disponible"),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     setState(() => _loading = true);
 
@@ -490,17 +503,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                               child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 250),
                                 child: _usePhone
-                                    ? _buildField(
+                                    ? _buildPhoneField(
                                         key: const ValueKey('phone'),
                                         controller: _phoneController,
-                                        label: 'Numéro de téléphone',
-                                        icon: Iconsax.call,
                                         focusNode: _phoneFocus,
-                                        keyboardType: TextInputType.phone,
-                                        validator: (v) =>
-                                            (v == null || v.isEmpty)
-                                                ? 'Veuillez entrer votre numéro'
-                                                : null,
                                       )
                                     : _buildField(
                                         key: const ValueKey('email'),
@@ -675,6 +681,96 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
         floatingLabelStyle:
             const TextStyle(color: Colors.black87, fontSize: 13),
         prefixIcon: Icon(icon, color: Colors.grey, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.amber, width: 1.8),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  // ── Champ téléphone avec préfixe +225 ─────────────────────────────────────
+
+  Widget _buildPhoneField({
+    required Key key,
+    required TextEditingController controller,
+    FocusNode? focusNode,
+  }) {
+    return TextFormField(
+      key: key,
+      controller: controller,
+      focusNode: focusNode,
+      keyboardType: TextInputType.phone,
+      textInputAction: TextInputAction.done,
+      onFieldSubmitted: (_) => _submit(),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(10),
+      ],
+      validator: (v) {
+        if (v == null || v.isEmpty) return 'Veuillez entrer votre numéro';
+        if (!RegExp(r'^\d{10}$').hasMatch(v)) {
+          return 'Le numéro doit contenir 10 chiffres';
+        }
+        return null;
+      },
+      style: const TextStyle(color: Colors.black87, fontSize: 15),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white,
+        labelText: 'Numéro de téléphone',
+        labelStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+        floatingLabelStyle:
+            const TextStyle(color: Colors.black87, fontSize: 13),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: NetImage(
+                  'https://flagcdn.com/w40/ci.png',
+                  width: 24,
+                  height: 16,
+                  fit: BoxFit.cover,
+                  error: (_) =>
+                      const Icon(Iconsax.call, size: 20, color: Colors.grey),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '+225',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(width: 1, height: 20, color: Colors.grey.shade300),
+            ],
+          ),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 0),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,

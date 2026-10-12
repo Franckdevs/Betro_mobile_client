@@ -6,6 +6,7 @@ import '../../models/gare_model.dart';
 import '../../services/api_service.dart';
 import '../../core/widgets/shimmer_skeleton.dart';
 import '../../core/utils/logger.dart';
+import '../../core/utils/error_helper.dart';
 
 class GaresCompagniePage extends StatefulWidget {
   final int compagnieId;
@@ -95,7 +96,7 @@ class _GaresCompagniePageState extends State<GaresCompagniePage>
       }
     } catch (e) {
       logDebug('[GARES_PAGE] ── EXCEPTION: $e');
-      setState(() => _errorMessage = 'Erreur: $e');
+      setState(() => _errorMessage = 'Erreur: ${ErrorHelper.cleanErrorMessage(e.toString())}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../core/widgets/app_date_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
@@ -14,6 +15,7 @@ import '../../pages/dashboard/gare_map_page.dart';
 import 'gares_compagnie_page.dart';
 import 'selection_siege.dart' show SelectionSiegePage;
 import '../../core/utils/logger.dart';
+import '../../core/utils/error_helper.dart';
 import '../../core/widgets/shimmer_skeleton.dart';
 
 class DetailCompagniePage extends StatefulWidget {
@@ -38,6 +40,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   String? _villeDepartId;
   String? _villeArriveeId;
   String? _gareDepartId;
+  String? _gareArriveeId;
   String? _selectedClasseId;
   DateTime _dateDepart = DateTime.now();
   bool _isLoading = false;
@@ -55,6 +58,11 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   bool _searchPanelHasMoreBelow = false;
 
   static const _amber = Color(0xFFFFC107);
+  // Palette du formulaire de recherche (tons chauds, cf. maquette web).
+  static const _ink = Color(0xFF1C1A17);
+  static const _sand = Color(0xFFF4F2EE);
+  static const _muted = Color(0xFF8F897F);
+  static const _placeholder = Color(0xFFB3ADA3);
   static const _moisAbbr = ['jan', 'fév', 'mar', 'avr', 'mai', 'juin', 'juil', 'août', 'sep', 'oct', 'nov', 'déc'];
 
   @override
@@ -236,22 +244,6 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     }
   }
 
-  /// Une gare située hors de la ville de départ désigne la destination :
-  /// on renseigne la ville d'arrivée automatiquement.
-  /// À appeler dans un setState (modifie l'état sans le déclencher).
-  bool _autoFillVilleArrivee(Gare gare) {
-    final villeId = gare.villeId;
-    if (villeId.isEmpty || villeId == _villeDepartId) return false;
-    if (villeId == _villeArriveeId) return false;
-    // La ville doit exister dans la liste, sinon le champ resterait vide
-    if (!_villes.any((v) => v.id.toString() == villeId)) return false;
-
-    _villeArriveeId = villeId;
-    // Force les champs ville à réafficher la valeur sélectionnée
-    _autocompleteKey++;
-    return true;
-  }
-
   Future<void> _rechercherVoyages() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -355,7 +347,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Erreur: $e'),
+              content: Text('Erreur: ${ErrorHelper.cleanErrorMessage(e.toString())}'),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating),
         );
@@ -366,13 +358,15 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   }
 
   void _swapVilles() {
-    final tempId = _villeDepartId;
+    final tempVilleId = _villeDepartId;
+    final tempGareId = _gareDepartId;
     setState(() {
       _villeDepartId = _villeArriveeId;
-      _villeArriveeId = tempId;
-      // La gare de depart deja choisie reste une option valide : la
-      // liste des gares n'est jamais filtree par ville (juste reordonnee),
-      // donc pas besoin de la reinitialiser lors du swap.
+      _villeArriveeId = tempVilleId;
+      // La gare sélectionnée suit sa ville pour rester cohérente avec la
+      // modale filtrée par ville.
+      _gareDepartId = _gareArriveeId;
+      _gareArriveeId = tempGareId;
       _autocompleteKey++;
     });
     if (_villeDepartId != null) {
@@ -381,23 +375,19 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final picked = await showDatePicker(
+    final aujourdhui = DateTime.now();
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: _dateDepart,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme:
-              const ColorScheme.light(primary: _amber, onPrimary: Colors.black87),
-        ),
-        child: child!,
-      ),
+      // Pas de départ dans le passé.
+      firstDate: aujourdhui,
+      lastDate: aujourdhui.add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _dateDepart = picked);
   }
 
-  static const String _imageBaseUrl = "http://192.168.95.123:8000";
+  // Même serveur que l'API (sans le suffixe /api).
+  static final String _imageBaseUrl = ApiService.baseUrl.replaceAll(RegExp(r'/api$'), '');
 
   /// Retourne la liste des URLs complètes des photos d'un bus.
   /// photo_bus peut être un `List<dynamic>` ou une String JSON.
@@ -459,7 +449,7 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                   _buildHeader(context),
                   // Stack : liste indépendante + card flottante au-dessus
                   Expanded(
-                    child: Stack(
+                    child: LayoutBuilder(builder: (context, zone) => Stack(
                       children: [
                         // ── Liste : occupe tout l'espace, ne sait pas que la card existe
                         Positioned.fill(
@@ -495,10 +485,10 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                           top: 8,
                           left: 16,
                           right: 16,
-                          child: _buildSearchCard(context),
+                          child: _buildSearchCard(context, zone.maxHeight),
                         ),
                       ],
-                    ),
+                    )),
                   ),
                 ],
               ),
@@ -546,9 +536,11 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                 ),
                 child: hasLogo
                     ? ClipOval(
-                        child: Image.network(widget.compagnie.logoUrl!,
+                        child: NetImage(widget.compagnie.logoUrl!,
+                            width: double.infinity,
+                            height: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
+                            error: (_) =>
                                 const Icon(Icons.business, color: _amber)))
                     : const Icon(Icons.business, color: _amber, size: 24),
               ),
@@ -616,7 +608,9 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
   }
 
   // ── Formulaire de recherche (sticky) ──────────────────────────────────────
-  Widget _buildSearchCard(BuildContext context) {
+  /// [hauteurDispo] : hauteur de la zone sous l'en-tête. Le formulaire
+  /// déplié peut l'occuper entièrement avant de défiler.
+  Widget _buildSearchCard(BuildContext context, double hauteurDispo) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -646,29 +640,21 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
             },
             behavior: HitTestBehavior.opaque,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              padding: const EdgeInsets.fromLTRB(18, 16, 14, 12),
               child: Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                      color: _amber.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(9)),
-                  child: const Icon(Icons.search_rounded,
-                      size: 16, color: _amber),
-                ),
-                const SizedBox(width: 10),
                 const Expanded(
-                  child: Text('Rechercher un voyage',
+                  child: Text('Où allez-vous ?',
                       style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87)),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: _ink)),
                 ),
                 AnimatedRotation(
                   turns: _isSearchExpanded ? 0 : -0.5,
                   duration: const Duration(milliseconds: 250),
                   child: const Icon(Icons.keyboard_arrow_down_rounded,
-                      color: Colors.grey, size: 22),
+                      color: _muted, size: 24),
                 ),
               ]),
             ),
@@ -680,7 +666,8 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
               children: [
                 ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.55,
+                // Marges (8 en haut, 16 en bas) + en-tête de la carte (~56).
+                maxHeight: (hauteurDispo - 80).clamp(120.0, double.infinity),
               ),
               child: SingleChildScrollView(
                 controller: _searchPanelScrollController,
@@ -690,204 +677,44 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(height: 1, color: Color(0xFFF0F0F0)),
-                  const SizedBox(height: 16),
+                  // ── Itinéraire Départ / Arrivée ──────────────
+                  _buildItineraire(),
+                  const SizedBox(height: 20),
 
-                  // ── Groupe Départ / Arrivée ──────────────────
-                  Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF9FAFB),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE8E8E8)),
-                        ),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 12, 50, 12),
-                              child: _buildVilleAutocomplete(
-                                key: ValueKey('depart_$_autocompleteKey'),
-                                label: 'Ville de départ',
-                                icon: Icons.trip_origin_rounded,
-                                iconColor: Colors.green,
-                                selectedId: _villeDepartId,
-                                onSelected: (id) {
-                                  if (id != null) {
-                                    setState(() {
-                                      _villeDepartId = id;
-                                      _gareDepartId = null;
-                                    });
-                                    _loadGares(id);
-                                  } else {
-                                    setState(() {
-                                      _villeDepartId = null;
-                                      _gareDepartId = null;
-                                      _gares = [];
-                                    });
-                                  }
-                                },
-                                validator: (id) => id == null
-                                    ? 'Sélectionnez une ville de départ'
-                                    : null,
-                                villesDisponibles: _villesCompagnie,
-                              ),
-                            ),
-                            Container(
-                              height: 1,
-                              margin: const EdgeInsets.symmetric(horizontal: 14),
-                              color: const Color(0xFFEEEEEE),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 12, 50, 12),
-                              child: _buildVilleAutocomplete(
-                                key: ValueKey('arrivee_$_autocompleteKey'),
-                                label: 'Ville d\'arrivée',
-                                icon: Icons.location_on_rounded,
-                                iconColor: Colors.red,
-                                selectedId: _villeArriveeId,
-                                onSelected: (id) => setState(() => _villeArriveeId = id),
-                                validator: (id) {
-                                  if (id == null) {
-                                    return 'Sélectionnez une ville d\'arrivée';
-                                  }
-                                  if (id == _villeDepartId) {
-                                    return 'Différente de la ville de départ';
-                                  }
-                                  return null;
-                                },
-                                villesDisponibles: _villesCompagnie,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // ── Bouton swap fonctionnel ───────────────────
-                      Positioned(
-                        right: 10,
-                        top: 0,
-                        bottom: 0,
-                        child: Center(
-                          child: GestureDetector(
-                            onTap: _swapVilles,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: _amber,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _amber.withValues(alpha: 0.45),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.swap_vert_rounded,
-                                size: 20,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Sélection gare
+                  // Sélection gare (modale par ville, déclenchée après le
+                  // choix de la ville et rappelable via ces résumés).
                   if (_villeDepartId != null) ...[
-                    _buildGareSelector(),
-                    const SizedBox(height: 12),
+                    _buildGareSummaryRow(
+                      label: 'Gare de départ',
+                      icon: Icons.place_rounded,
+                      gare: _findGare(_gareDepartId),
+                      onTap: () => _openGareModal(isDepart: true),
+                    ),
+                    const SizedBox(height: 10),
                   ],
+                  if (_villeArriveeId != null) ...[
+                    _buildGareSummaryRow(
+                      label: "Gare d'arrivée",
+                      icon: Icons.flag_rounded,
+                      gare: _findGare(_gareArriveeId),
+                      onTap: () => _openGareModal(isDepart: false),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Date de départ
+                  _sectionLabel('Date de départ'),
+                  _buildDateStrip(),
+                  const SizedBox(height: 20),
 
                   // Classe
                   _buildClasseSelector(),
-                  const SizedBox(height: 12),
-
-                  // Date de départ
-                  GestureDetector(
-                    onTap: () => _selectDate(context),
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAFAFA),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                      ),
-                      child: Row(children: [
-                        // Mini calendrier visuel
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            color: _amber.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                _dateDepart.day.toString(),
-                                style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: _amber,
-                                    height: 1.0),
-                              ),
-                              Text(
-                                _moisAbbr[_dateDepart.month - 1],
-                                style: const TextStyle(
-                                    fontSize: 9,
-                                    color: _amber,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.3),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Date de départ',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              const SizedBox(height: 3),
-                              Text(
-                                _formatDateFr(_dateDepart),
-                                style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: _amber.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text('Modifier',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: _amber)),
-                        ),
-                      ]),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
                   // Bouton rechercher
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 54,
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _rechercherVoyages,
                       icon: _isLoading
@@ -908,10 +735,10 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                               fontSize: 15, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _amber,
-                        foregroundColor: Colors.black87,
+                        foregroundColor: _ink,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(16)),
                       ),
                     ),
                   ),
@@ -935,630 +762,621 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     );
   }
 
-  // ── Sélecteur de gare ────────────────────────────────────────────────────
-  Widget _buildGareSelector() {
-    if (_isLoadingGares) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFAFAFA),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE0E0E0)),
-        ),
-        child: const Center(
-          child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(_amber),
-              strokeWidth: 2),
-        ),
-      );
-    }
+  // ── Résumé gare (départ / arrivée) — ouvre la modale filtrée par ville ────
+  Gare? _findGare(String? id) {
+    if (id == null) return null;
+    return _gares.cast<Gare?>().firstWhere(
+        (g) => g!.id.toString() == id, orElse: () => null);
+  }
 
-    if (_gares.isEmpty) {
-      return Container(
+  String? _villeNom(String? id) {
+    if (id == null) return null;
+    return [..._villesCompagnie, ..._villes]
+        .cast<Ville?>()
+        .firstWhere((v) => v!.id.toString() == id, orElse: () => null)
+        ?.nomVille;
+  }
+
+  Widget _buildGareSummaryRow({
+    required String label,
+    required IconData icon,
+    required Gare? gare,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha: 0.07),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
+          border: Border.all(color: const Color(0xFFEEEEEE)),
         ),
-        child: const Row(children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 16),
-          SizedBox(width: 8),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: _amber.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 15, color: _amber),
+          ),
+          const SizedBox(width: 10),
           Expanded(
-              child: Text('Aucune gare disponible pour cette ville',
-                  style: TextStyle(fontSize: 13, color: Colors.orange))),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[500])),
+                  Text(' · facultatif',
+                      style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                ]),
+                const SizedBox(height: 2),
+                Text(
+                  gare?.nomGare ?? 'Toutes les gares',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: gare != null ? _ink : _placeholder),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: Colors.grey[400], size: 20),
         ]),
-      );
+      ),
+    );
+  }
+
+  /// Ouvre la modale de sélection de gare, filtrée sur la seule ville
+  /// concernée (départ ou arrivée) — jamais un mélange des deux.
+  Future<void> _openGareModal({required bool isDepart}) async {
+    final villeId = isDepart ? _villeDepartId : _villeArriveeId;
+    if (villeId == null) return;
+
+    if (_gares.isEmpty && !_isLoadingGares) {
+      await _loadGares(villeId, preserverGareDepart: true);
+      if (!mounted) return;
     }
 
-    return FormField<String>(
-      initialValue: _gareDepartId,
-      validator: (v) => v == null ? 'Sélectionnez une gare de départ' : null,
-      builder: (state) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Label ──────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: _amber.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  child: const Icon(Icons.place_rounded, size: 14, color: _amber),
-                ),
-                const SizedBox(width: 8),
-                Text('Gare de départ',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.grey[800])),
-                const Spacer(),
-                Text('${_gares.length} disponible${_gares.length > 1 ? 's' : ''}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-              ]),
-            ),
+    final gares = _gares.where((g) => g.villeId == villeId).toList();
+    final currentId = isDepart ? _gareDepartId : _gareArriveeId;
 
-            // ── Liste des gares ────────────────────────────────────
-            ..._gares.map<Widget>((gare) {
-              final isSelected = _gareDepartId == gare.id.toString();
-              final isVilleDepart = gare.villeId == _villeDepartId;
-              final isVilleArrivee =
-                  gare.villeId.isNotEmpty && gare.villeId == _villeArriveeId;
+    final result = await _showGareModal(
+      title: isDepart ? 'Gare de départ' : "Gare d'arrivée",
+      subtitle: _villeNom(villeId),
+      gares: gares,
+      selectedId: currentId,
+    );
+    if (!mounted || result == null) return;
 
-              return GestureDetector(
-                onTap: () {
-                  bool villeRemplie = false;
-                  setState(() {
-                    _gareDepartId = gare.id.toString();
-                    villeRemplie = _autoFillVilleArrivee(gare);
-                  });
-                  state.didChange(gare.id.toString());
-                  if (villeRemplie) {
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(SnackBar(
-                        content: Text('Ville d\'arrivée : ${gare.ville}'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
-                        backgroundColor: Colors.black87,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        margin: const EdgeInsets.all(16),
-                      ));
-                  }
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFFFFF8E1) : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected ? _amber : const Color(0xFFEEEEEE),
-                      width: isSelected ? 1.8 : 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isSelected
-                            ? _amber.withValues(alpha: 0.15)
-                            : Colors.black.withValues(alpha: 0.04),
-                        blurRadius: isSelected ? 10 : 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // ── Indicateur sélection ───────────────────
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: isSelected ? _amber : const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          isSelected
-                              ? Icons.check_rounded
-                              : Icons.directions_bus_filled,
-                          size: 18,
-                          color: isSelected ? Colors.black87 : Colors.grey[400],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
+    setState(() {
+      final id = result == _GareModalSheet.clearValue ? null : result;
+      if (isDepart) {
+        _gareDepartId = id;
+      } else {
+        _gareArriveeId = id;
+      }
+    });
+  }
 
-                      // ── Infos gare ─────────────────────────────
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Nom + badge ville départ
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    gare.nomGare,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.w600,
-                                      color: isSelected
-                                          ? Colors.black87
-                                          : Colors.black87,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (isVilleDepart) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                          color: Colors.green.shade200),
-                                    ),
-                                    child: Text('Ville départ',
-                                        style: TextStyle(
-                                            fontSize: 9,
-                                            color: Colors.green.shade700,
-                                            fontWeight: FontWeight.w700)),
-                                  ),
-                                ] else if (isVilleArrivee) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade50,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border:
-                                          Border.all(color: Colors.red.shade200),
-                                    ),
-                                    child: Text('Ville arrivée',
-                                        style: TextStyle(
-                                            fontSize: 9,
-                                            color: Colors.red.shade700,
-                                            fontWeight: FontWeight.w700)),
-                                  ),
-                                ],
-                              ],
-                            ),
+  Future<String?> _showGareModal({
+    required String title,
+    String? subtitle,
+    required List<Gare> gares,
+    required String? selectedId,
+  }) {
+    FocusScope.of(context).unfocus();
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.78,
+      ),
+      builder: (_) => _GareModalSheet(
+        title: title,
+        subtitle: subtitle,
+        gares: gares,
+        selectedId: selectedId,
+      ),
+    );
+  }
 
-                            // Adresse + ville (la ville doit toujours
-                            // apparaitre : l'adresse brute -- souvent une
-                            // saisie Google Places -- ne suffit pas a elle
-                            // seule a identifier clairement la ville).
-                            if (gare.adresseGare.isNotEmpty || gare.ville.isNotEmpty) ...[
-                              const SizedBox(height: 3),
-                              Row(children: [
-                                Icon(Icons.location_on_outlined,
-                                    size: 11, color: Colors.grey[400]),
-                                const SizedBox(width: 3),
-                                Expanded(
-                                  child: Text(
-                                      [
-                                        if (gare.adresseGare.isNotEmpty) gare.adresseGare,
-                                        if (gare.ville.isNotEmpty &&
-                                            !gare.adresseGare
-                                                .toLowerCase()
-                                                .contains(gare.ville.toLowerCase()))
-                                          gare.ville,
-                                      ].join(' · '),
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey[500]),
-                                      overflow: TextOverflow.ellipsis),
-                                ),
-                              ]),
-                            ],
-
-                            // Horaires
-                            if (gare.heureOuverture.isNotEmpty &&
-                                gare.heureFermeture.isNotEmpty) ...[
-                              const SizedBox(height: 3),
-                              Row(children: [
-                                Icon(Icons.schedule_rounded,
-                                    size: 11, color: Colors.grey[400]),
-                                const SizedBox(width: 3),
-                                Text(
-                                  '${gare.heureOuverture} – ${gare.heureFermeture}',
-                                  style: TextStyle(
-                                      fontSize: 11, color: Colors.grey[500]),
-                                ),
-                              ]),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      // ── Badges WiFi / Parking ──────────────────
-                      if (gare.wifiDisponible || gare.parkingDisponible) ...[
-                        const SizedBox(width: 8),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (gare.wifiDisponible)
-                              _buildBadge(Icons.wifi_rounded, Colors.blue, 'WiFi'),
-                            if (gare.wifiDisponible && gare.parkingDisponible)
-                              const SizedBox(height: 4),
-                            if (gare.parkingDisponible)
-                              _buildBadge(
-                                  Icons.local_parking_rounded, Colors.indigo, 'P'),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            }),
-
-            // ── Erreur validation ──────────────────────────────────
-            if (state.hasError)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, left: 4),
-                child: Row(children: [
-                  const Icon(Icons.error_outline_rounded,
-                      size: 13, color: Colors.red),
-                  const SizedBox(width: 4),
-                  Text(state.errorText!,
-                      style:
-                          const TextStyle(color: Colors.red, fontSize: 12)),
-                ]),
-              ),
-          ],
-        );
-      },
+  Widget _sectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w700, color: _ink)),
     );
   }
 
   Widget _buildClasseSelector() {
     if (_isLoadingClasses) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Center(
-            child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(_amber),
-                strokeWidth: 2)),
+      return const AppShimmer(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SkBox(width: 60, height: 14),
+          SizedBox(height: 10),
+          SkBox(width: double.infinity, height: 48, radius: 14),
+        ]),
       );
     }
 
     if (_classes.isEmpty) return const SizedBox.shrink();
 
-    final allClasses = <Map<String, dynamic>>[
-      {'id': null, 'nom': 'Toutes', 'icon': Icons.select_all_rounded},
-      ..._classes.map((c) => {
-            'id': c['id']?.toString(),
-            'nom': c['nom']?.toString() ?? c['libelle']?.toString() ?? '?',
-            'icon': _classeIcon(c['nom']?.toString() ?? ''),
-          }),
+    final options = <({String? id, String nom})>[
+      (id: null, nom: 'Toutes'),
+      ..._classes.map((c) => (
+            id: c['id']?.toString(),
+            nom: c['nom']?.toString() ?? c['libelle']?.toString() ?? '?',
+          )),
     ];
+
+    Widget segment(({String? id, String nom}) o) {
+      final isSelected = _selectedClasseId == o.id;
+      return GestureDetector(
+        onTap: () => setState(() => _selectedClasseId = o.id),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2)),
+                  ]
+                : const [],
+          ),
+          child: Text(
+            o.nom,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected ? _ink : _muted,
+            ),
+          ),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Row(children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: _amber.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: const Icon(Icons.airline_seat_recline_normal_rounded,
-                  size: 14, color: _amber),
-            ),
-            const SizedBox(width: 8),
-            Text('Classe de voyage',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey[800])),
-            const Spacer(),
-            Text('${allClasses.length - 1} classe${allClasses.length - 1 > 1 ? 's' : ''}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-          ]),
-        ),
-        // Chips horizontaux scrollables
-        SizedBox(
+        _sectionLabel('Classe'),
+        Container(
           height: 48,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: allClasses.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) {
-              final item = allClasses[i];
-              final id = item['id'] as String?;
-              final nom = item['nom'] as String;
-              final icon = item['icon'] as IconData;
-              final isSelected = _selectedClasseId == id;
-
-              return GestureDetector(
-                onTap: () => setState(() => _selectedClasseId = id),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: isSelected ? _amber : const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: isSelected ? _amber : const Color(0xFFE0E0E0),
-                      width: isSelected ? 0 : 1,
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                                color: _amber.withValues(alpha: 0.35),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3))
-                          ]
-                        : [],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon,
-                          size: 15,
-                          color: isSelected ? Colors.black87 : Colors.grey[600]),
-                      const SizedBox(width: 6),
-                      Text(
-                        nom,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: isSelected ? Colors.black87 : Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: _sand,
+            borderRadius: BorderRadius.circular(14),
           ),
+          // Jusqu'à 3 options : segments de largeur égale ; au-delà,
+          // défilement horizontal pour ne pas écraser les libellés.
+          child: options.length <= 3
+              ? Row(
+                  children: options
+                      .map((o) => Expanded(child: segment(o)))
+                      .toList(),
+                )
+              : ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: options.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 4),
+                  itemBuilder: (_, i) => segment(options[i]),
+                ),
         ),
       ],
     );
   }
 
-  String _formatDateFr(DateTime d) {
-    const jours = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-    const moisFull = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-                      'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-    return '${jours[d.weekday - 1]}. ${d.day} ${moisFull[d.month - 1]} ${d.year}';
-  }
+  // ── Bande de dates ────────────────────────────────────────────────────────
+  static const _joursAbbr = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-  IconData _classeIcon(String nom) {
-    final n = nom.toLowerCase();
-    if (n.contains('vip') || n.contains('luxe') || n.contains('premium')) {
-      return Icons.star_rounded;
-    }
-    if (n.contains('business') || n.contains('affaire')) {
-      return Icons.work_rounded;
-    }
-    if (n.contains('eco') || n.contains('standard') || n.contains('normal')) {
-      return Icons.airline_seat_recline_normal_rounded;
-    }
-    if (n.contains('confort') || n.contains('comfort')) {
-      return Icons.weekend_rounded;
-    }
-    return Icons.airline_seat_recline_extra_rounded;
-  }
+  Widget _buildDateStrip() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected =
+        DateTime(_dateDepart.year, _dateDepart.month, _dateDepart.day);
+    final days = List.generate(14, (i) => today.add(Duration(days: i)));
+    final horsBande = !days.contains(selected);
 
-  Widget _buildBadge(IconData icon, Color color, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+    Widget chip({
+      required String top,
+      required String bottom,
+      required bool isSelected,
+      required VoidCallback onTap,
+    }) {
+      return GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 74,
+          decoration: BoxDecoration(
+            color: isSelected ? _ink : _sand,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text(top,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? _amber : _ink)),
+            const SizedBox(height: 2),
+            Text(bottom,
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                    color: isSelected ? _amber : _ink)),
+          ]),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 70,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (var i = 0; i < days.length; i++) ...[
+            chip(
+              top: i == 0
+                  ? 'Auj.'
+                  : i == 1
+                      ? 'Demain'
+                      : _joursAbbr[days[i].weekday - 1],
+              bottom: '${days[i].day}',
+              isSelected: days[i] == selected,
+              onTap: () => setState(() => _dateDepart = days[i]),
+            ),
+            const SizedBox(width: 8),
+          ],
+          // Date plus lointaine : calendrier complet.
+          horsBande
+              ? chip(
+                  top: _moisAbbr[selected.month - 1],
+                  bottom: '${selected.day}',
+                  isSelected: true,
+                  onTap: () => _selectDate(context),
+                )
+              : GestureDetector(
+                  onTap: () => _selectDate(context),
+                  child: Container(
+                    width: 74,
+                    decoration: BoxDecoration(
+                      color: _sand,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.calendar_month_rounded,
+                              size: 20, color: _ink),
+                          SizedBox(height: 4),
+                          Text('Autre',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _ink)),
+                        ]),
+                  ),
+                ),
+        ],
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 11, color: color),
-        const SizedBox(width: 3),
-        Text(label,
-            style: TextStyle(
-                fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  // ── Itinéraire Départ / Arrivée ───────────────────────────────────────────
+  Widget _buildItineraire() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _sand,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+      child: Row(children: [
+        // Ligne de temps : départ (cercle) → arrivée (carré ambre)
+        Column(children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _ink, width: 2),
+            ),
+          ),
+          Container(width: 2, height: 46, color: const Color(0xFFD9D4CB)),
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: _amber,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        ]),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(children: [
+            _buildVilleField(
+              key: ValueKey('depart_$_autocompleteKey'),
+              label: 'Départ',
+              sheetTitle: 'Ville de départ',
+              selectedId: _villeDepartId,
+              // La ville d'arrivée n'est pas proposée au départ
+              excludeId: _villeArriveeId,
+              onSelected: (id) async {
+                setState(() {
+                  _villeDepartId = id;
+                  _gareDepartId = null;
+                  _gareArriveeId = null;
+                });
+                await _loadGares(id);
+                if (!mounted) return;
+                await _openGareModal(isDepart: true);
+              },
+              validator: (id) =>
+                  id == null ? 'Sélectionnez une ville de départ' : null,
+            ),
+            const Divider(height: 1, color: Color(0xFFE6E1D8)),
+            _buildVilleField(
+              key: ValueKey('arrivee_$_autocompleteKey'),
+              label: 'Arrivée',
+              sheetTitle: "Ville d'arrivée",
+              selectedId: _villeArriveeId,
+              // La ville de départ n'est pas proposée à l'arrivée
+              excludeId: _villeDepartId,
+              onSelected: (id) async {
+                setState(() {
+                  _villeArriveeId = id;
+                  _gareArriveeId = null;
+                });
+                await _openGareModal(isDepart: false);
+              },
+              validator: (id) {
+                if (id == null) return "Sélectionnez une ville d'arrivée";
+                if (id == _villeDepartId) {
+                  return 'Différente de la ville de départ';
+                }
+                return null;
+              },
+            ),
+          ]),
+        ),
+        // Inversion départ / arrivée
+        IconButton(
+          onPressed: _swapVilles,
+          tooltip: 'Inverser',
+          icon: const Icon(Icons.swap_vert_rounded, size: 20, color: _ink),
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.white,
+            shape: const CircleBorder(),
+            padding: const EdgeInsets.all(10),
+          ),
+        ),
       ]),
     );
   }
 
-  // ── Autocomplete ville ────────────────────────────────────────────────────
-  Widget _buildVilleAutocomplete({
+  Widget _buildVilleField({
     Key? key,
     required String label,
-    required IconData icon,
-    required Color iconColor,
+    required String sheetTitle,
     required String? selectedId,
-    required void Function(String? id) onSelected,
-    String? Function(String?)? validator,
-    List<Ville>? villesDisponibles,
+    String? excludeId,
+    required void Function(String id) onSelected,
+    required String? Function(String?) validator,
   }) {
-    final sourceVilles = villesDisponibles ?? _villes;
-    final initialVille = selectedId != null
-        ? _villes.cast<Ville?>().firstWhere(
-            (v) => v!.id.toString() == selectedId,
-            orElse: () => null)
-        : null;
-
-    return Autocomplete<Ville>(
-      key: key,
-      initialValue: initialVille != null
-          ? TextEditingValue(text: initialVille.nomVille)
-          : null,
-      displayStringForOption: (v) => v.nomVille,
-      optionsBuilder: (textEditingValue) {
-        final text = textEditingValue.text;
-        if (text.isEmpty) return const Iterable<Ville>.empty();
-        // Empêche le dropdown de réapparaître juste après la sélection
-        if (selectedId != null) {
-          final sel = _villes.cast<Ville?>().firstWhere(
+    // Villes de la compagnie d'abord : la liste générale peut ne pas
+    // être encore chargée (ou avoir échoué).
+    final ville = selectedId == null
+        ? null
+        : [..._villesCompagnie, ..._villes].cast<Ville?>().firstWhere(
             (v) => v!.id.toString() == selectedId,
             orElse: () => null);
-          if (sel != null && sel.nomVille == text) {
-            return const Iterable<Ville>.empty();
+
+    return FormField<String>(
+      key: key,
+      initialValue: selectedId,
+      validator: (_) => validator(selectedId),
+      builder: (state) => InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () async {
+          final id = await _showVillePicker(sheetTitle, selectedId, excludeId);
+          if (id == null) return;
+          onSelected(id);
+          state.didChange(id);
+          // Efface le message d'erreur dès qu'une ville est choisie.
+          if (state.hasError) {
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) => state.validate());
           }
-        }
-        return sourceVilles.where((v) => v.nomVille
-            .toLowerCase()
-            .contains(text.toLowerCase()));
-      },
-      onSelected: (ville) {
-        onSelected(ville.id.toString());
-        FocusScope.of(context).unfocus();
-      },
-      optionsViewBuilder: (context, onOptionSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 6,
-            borderRadius: BorderRadius.circular(14),
-            shadowColor: Colors.black.withValues(alpha: 0.12),
-            color: Colors.white,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 240),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  shrinkWrap: true,
-                  itemCount: options.length,
-                  separatorBuilder: (_, __) => const Divider(
-                    height: 1,
-                    indent: 52,
-                    endIndent: 16,
-                    color: Color(0xFFF0F0F0),
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(fontSize: 12, color: _muted)),
+                const SizedBox(height: 2),
+                Text(
+                  ville?.nomVille ?? 'Choisir une ville',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: ville != null ? _ink : _placeholder,
                   ),
-                  itemBuilder: (context, index) {
-                    final ville = options.elementAt(index);
-                    return InkWell(
-                      onTap: () => onOptionSelected(ville),
-                      splashColor: _amber.withValues(alpha: 0.10),
-                      highlightColor: _amber.withValues(alpha: 0.06),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 13),
-                        child: Row(children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: iconColor.withValues(alpha: 0.10),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(icon, size: 15, color: iconColor),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              ville.nomVille,
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87),
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right_rounded,
-                              size: 16, color: Colors.black26),
-                        ]),
+                ),
+                if (state.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(state.errorText!,
+                        style:
+                            const TextStyle(color: Colors.red, fontSize: 12)),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _sansAccents(String s) {
+    const de = 'àâäáãéèêëíìîïóòôöõúùûüçñ';
+    const vers = 'aaaaaeeeeiiiiooooouuuucn';
+    final b = StringBuffer();
+    for (final c in s.toLowerCase().split('')) {
+      final i = de.indexOf(c);
+      b.write(i >= 0 ? vers[i] : c);
+    }
+    return b.toString();
+  }
+
+  /// Feuille de sélection d'une ville parmi celles desservies par la compagnie.
+  /// [excludeId] : ville déjà choisie de l'autre côté (départ ≠ arrivée).
+  Future<String?> _showVillePicker(
+      String title, String? selectedId, String? excludeId) {
+    FocusScope.of(context).unfocus();
+    final villes = _villesCompagnie;
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+      ),
+      builder: (ctx) {
+        var query = '';
+        return StatefulBuilder(builder: (ctx, setSheet) {
+          final q = _sansAccents(query.trim());
+          final filtered = villes
+              .where((v) => v.id.toString() != excludeId)
+              .where((v) => _sansAccents(v.nomVille).contains(q))
+              .toList();
+          return Padding(
+            padding:
+                EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 10, bottom: 18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0DCD4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(title,
+                      style: const TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: _ink)),
+                ),
+                Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+                    child: TextField(
+                      onChanged: (v) => setSheet(() => query = v),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher une ville',
+                        prefixIcon: const Icon(Icons.search_rounded,
+                            color: _muted, size: 20),
+                        filled: true,
+                        fillColor: _sand,
+                        isDense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-      fieldViewBuilder:
-          (context, textController, focusNode, onFieldSubmitted) {
-        return TextFormField(
-          controller: textController,
-          focusNode: focusNode,
-          style: const TextStyle(
-              fontSize: 15, color: Colors.black87, fontWeight: FontWeight.w500),
-          decoration: InputDecoration(
-            labelText: label,
-            labelStyle: const TextStyle(fontSize: 13, color: Colors.grey),
-            prefixIcon: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 15, color: iconColor),
-              ),
-            ),
-            prefixIconConstraints: const BoxConstraints(minWidth: 52),
-            suffixIcon: ValueListenableBuilder<TextEditingValue>(
-              valueListenable: textController,
-              builder: (_, value, __) => value.text.isNotEmpty
-                  ? GestureDetector(
-                      onTap: () {
-                        textController.clear();
-                        onSelected(null);
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                if (filtered.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(24, 12, 24, 32),
+                    child: Text('Aucune ville disponible',
+                        style: TextStyle(color: _muted)),
+                  )
+                else
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.only(
+                          bottom: MediaQuery.of(ctx).padding.bottom + 12),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final v = filtered[i];
+                        final isSelected = v.id.toString() == selectedId;
+                        return InkWell(
+                          onTap: () => Navigator.pop(ctx, v.id.toString()),
+                          child: Container(
+                            color: isSelected
+                                ? const Color(0xFFFAF6EC)
+                                : Colors.transparent,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 16),
+                            child: Row(children: [
+                              Expanded(
+                                child: Text(v.nomVille,
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: _ink)),
+                              ),
+                              if (isSelected)
+                                const Icon(Icons.check_rounded,
+                                    size: 20, color: _amber),
+                            ]),
+                          ),
+                        );
                       },
-                      child: const Icon(Icons.close_rounded,
-                          size: 17, color: Colors.grey),
-                    )
-                  : const Icon(Icons.keyboard_arrow_down_rounded,
-                      color: Colors.black26, size: 20),
+                    ),
+                  ),
+              ],
             ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 15),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _amber, width: 1.8)),
-            errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.red)),
-            focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.red, width: 1.8)),
-          ),
-          validator:
-              validator != null ? (_) => validator(selectedId) : null,
-          onTapOutside: (_) {
-            FocusScope.of(context).unfocus();
-            // Un texte laisse dans le champ sans correspondre a une ville
-            // proposee (ni a la selection en cours) est efface : on ne
-            // peut pas valider autre chose qu'une ville reellement
-            // disponible pour cette compagnie.
-            final texte = textController.text.trim();
-            if (texte.isEmpty) return;
-            final correspond = sourceVilles.any(
-                (v) => v.nomVille.toLowerCase() == texte.toLowerCase());
-            if (!correspond) {
-              textController.clear();
-              onSelected(null);
-            }
-          },
-        );
+          );
+        });
       },
     );
   }
@@ -1568,20 +1386,12 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Bandeau spinner + libellé
+        // Libellé de chargement
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    valueColor: AlwaysStoppedAnimation<Color>(_amber)),
-              ),
-              const SizedBox(width: 10),
               Text(label,
                   style: const TextStyle(
                       fontSize: 13,
@@ -1594,6 +1404,18 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
         ...List.generate(3, (_) => const SkeletonVoyageCard()),
       ],
     );
+  }
+
+  /// Formate une date ISO (yyyy-MM-dd) pour l'affichage sur une carte
+  /// voyage : « Aujourd'hui » si c'est la date du jour, sinon dd/MM.
+  String _formatVoyageDate(String isoDate) {
+    final date = DateTime.tryParse(isoDate);
+    if (date == null) return isoDate.split('-').reversed.join('/');
+    final now = DateTime.now();
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      return "Aujourd'hui";
+    }
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
   }
 
   Widget _buildResultsHeader() {
@@ -1757,24 +1579,14 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(width: 0),
-                // Disponibilité
-                if (disponibleToujours)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text('Tous les jours',
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600)),
-                  )
-                else if (dateDepart.isNotEmpty)
-                  Text(dateDepart.split('-').reversed.join('/'),
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                // Date du voyage (celle recherchée pour les rares voyages
+                // legacy « toujours disponible », sans date propre).
+                Text(
+                  _formatVoyageDate(dateDepart.isNotEmpty
+                      ? dateDepart
+                      : _dateDepart.toString().split(' ')[0]),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
                 const Spacer(),
                 // Prix + label
                 if (montantFormatted != null)
@@ -1905,11 +1717,11 @@ class _DetailCompagniePageState extends State<DetailCompagniePage> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: photos.isNotEmpty
-                            ? Image.network(photos.first,
+                            ? NetImage(photos.first,
                                 width: 46,
                                 height: 36,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _busIconBox())
+                                error: (_) => _busIconBox())
                             : _busIconBox(),
                       ),
                       if (photos.length > 1)
@@ -2271,20 +2083,364 @@ class _BusImageViewerState extends State<_BusImageViewer> {
           minScale: 0.5,
           maxScale: 4.0,
           child: Center(
-            child: Image.network(
+            child: NetImage(
               widget.urls[i],
               fit: BoxFit.contain,
-              loadingBuilder: (_, child, prog) {
-                if (prog == null) return child;
-                return const Center(
-                    child: CircularProgressIndicator(color: Colors.amber));
-              },
-              errorBuilder: (_, __, ___) =>
+              dark: true,
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height * 0.8,
+              error: (_) =>
                   const Icon(Icons.error, color: Colors.red, size: 50),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Modale de sélection de gare (départ ou arrivée) ─────────────────────────
+/// Toujours filtrée sur une seule ville : jamais de mélange départ/arrivée.
+/// Entrée animée en cascade des cartes + recherche locale.
+class _GareModalSheet extends StatefulWidget {
+  /// Valeur renvoyée par [Navigator.pop] quand l'utilisateur choisit
+  /// explicitement « Toutes les gares » (à distinguer d'une fermeture sans
+  /// choix, qui renvoie `null`).
+  static const clearValue = '__all__';
+
+  final String title;
+  final String? subtitle;
+  final List<Gare> gares;
+  final String? selectedId;
+
+  const _GareModalSheet({
+    required this.title,
+    this.subtitle,
+    required this.gares,
+    required this.selectedId,
+  });
+
+  @override
+  State<_GareModalSheet> createState() => _GareModalSheetState();
+}
+
+class _GareModalSheetState extends State<_GareModalSheet>
+    with SingleTickerProviderStateMixin {
+  static const _amber = Color(0xFFFFC107);
+  static const _ink = Color(0xFF1C1A17);
+  static const _sand = Color(0xFFF4F2EE);
+  static const _muted = Color(0xFF8F897F);
+
+  late final AnimationController _ctrl;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 520))
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  static String _sansAccents(String s) {
+    const de = 'àâäáãéèêëíìîïóòôöõúùûüçñ';
+    const vers = 'aaaaaeeeeiiiiooooouuuucn';
+    final b = StringBuffer();
+    for (final c in s.toLowerCase().split('')) {
+      final i = de.indexOf(c);
+      b.write(i >= 0 ? vers[i] : c);
+    }
+    return b.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _sansAccents(_query.trim());
+    final filtered = q.isEmpty
+        ? widget.gares
+        : widget.gares
+            .where((g) =>
+                _sansAccents(g.nomGare).contains(q) ||
+                _sansAccents(g.adresseGare).contains(q))
+            .toList();
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0DCD4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.title,
+                          style: const TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              color: _ink)),
+                      if (widget.subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(widget.subtitle!,
+                            style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                      ],
+                    ],
+                  ),
+                ),
+                Text(
+                    '${widget.gares.length} disponible${widget.gares.length > 1 ? 's' : ''}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+            child: TextField(
+              onChanged: (v) => setState(() => _query = v),
+              decoration: InputDecoration(
+                hintText: 'Rechercher une gare',
+                prefixIcon: const Icon(Icons.search_rounded, color: _muted, size: 20),
+                filled: true,
+                fillColor: _sand,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: filtered.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                    child: Text(
+                        widget.gares.isEmpty
+                            ? 'Aucune gare disponible pour cette ville'
+                            : 'Aucun résultat pour « $_query »',
+                        style: const TextStyle(color: _muted)),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.fromLTRB(
+                        16, 4, 16, MediaQuery.of(context).padding.bottom + 16),
+                    // +1 pour l'option "Toutes les gares" en tête de liste.
+                    itemCount: filtered.length + 1,
+                    itemBuilder: (_, i) {
+                      final child = i == 0
+                          ? _buildAllOption()
+                          : _buildGareCard(filtered[i - 1]);
+                      return _staggered(i, child);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _staggered(int index, Widget child) {
+    final start = (index * 0.06).clamp(0.0, 0.7);
+    final anim = CurvedAnimation(
+      parent: _ctrl,
+      curve: Interval(start, (start + 0.35).clamp(0.0, 1.0), curve: Curves.easeOutCubic),
+    );
+    return AnimatedBuilder(
+      animation: anim,
+      builder: (context, c) => Opacity(
+        opacity: anim.value,
+        child: Transform.translate(
+          offset: Offset(0, (1 - anim.value) * 14),
+          child: c,
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildAllOption() {
+    final isSelected = widget.selectedId == null;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => Navigator.pop(context, _GareModalSheet.clearValue),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF8E1) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? _amber : const Color(0xFFEEEEEE),
+            width: isSelected ? 1.8 : 1,
+          ),
+        ),
+        child: Row(children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isSelected ? _amber : const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isSelected ? Icons.check_rounded : Icons.apps_rounded,
+              size: 18,
+              color: isSelected ? Colors.black87 : Colors.grey[400],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('Toutes les gares',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    color: Colors.black87)),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildGareCard(Gare gare) {
+    final isSelected = widget.selectedId == gare.id.toString();
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => Navigator.pop(context, gare.id.toString()),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOut,
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF8E1) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? _amber : const Color(0xFFEEEEEE),
+            width: isSelected ? 1.8 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? _amber.withValues(alpha: 0.15)
+                  : Colors.black.withValues(alpha: 0.04),
+              blurRadius: isSelected ? 10 : 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isSelected ? _amber : const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isSelected ? Icons.check_rounded : Icons.directions_bus_filled,
+              size: 18,
+              color: isSelected ? Colors.black87 : Colors.grey[400],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(gare.nomGare,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                        color: Colors.black87),
+                    overflow: TextOverflow.ellipsis),
+                if (gare.adresseGare.isNotEmpty || gare.ville.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    Icon(Icons.location_on_outlined, size: 11, color: Colors.grey[400]),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                          [
+                            if (gare.adresseGare.isNotEmpty) gare.adresseGare,
+                            if (gare.ville.isNotEmpty &&
+                                !gare.adresseGare
+                                    .toLowerCase()
+                                    .contains(gare.ville.toLowerCase()))
+                              gare.ville,
+                          ].join(' · '),
+                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
+                ],
+                if (gare.heureOuverture.isNotEmpty && gare.heureFermeture.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    Icon(Icons.schedule_rounded, size: 11, color: Colors.grey[400]),
+                    const SizedBox(width: 3),
+                    Text('${gare.heureOuverture} – ${gare.heureFermeture}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                  ]),
+                ],
+              ],
+            ),
+          ),
+          if (gare.wifiDisponible || gare.parkingDisponible) ...[
+            const SizedBox(width: 8),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (gare.wifiDisponible)
+                  _badge(Icons.wifi_rounded, Colors.blue, 'WiFi'),
+                if (gare.wifiDisponible && gare.parkingDisponible)
+                  const SizedBox(height: 4),
+                if (gare.parkingDisponible)
+                  _badge(Icons.local_parking_rounded, Colors.indigo, 'P'),
+              ],
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  Widget _badge(IconData icon, Color color, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 3),
+        Text(label,
+            style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+      ]),
     );
   }
 }

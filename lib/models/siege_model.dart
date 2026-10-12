@@ -26,7 +26,9 @@ class Siege {
       id: json['id'] as int,
       configurationBusId: json['configuration_bus_id'] as int,
       numero: json['numero'] as int,
-      disponible: json['disponible'] as int,
+      disponible: json['disponible'] is bool
+          ? (json['disponible'] ? 1 : 0)
+          : int.tryParse(json['disponible'].toString()) ?? 0,
       type: json['type'] as String,
       nom: json['nom'] as String,
       createdAt: json['created_at'] as String?,

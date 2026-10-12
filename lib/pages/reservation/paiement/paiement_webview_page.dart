@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
+import '../../../core/utils/error_helper.dart';
 
 const Color _amber = Color(0xFFFFB300);
 
@@ -111,7 +112,7 @@ class _PaiementWebViewPageState extends State<PaiementWebViewPage> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+            SnackBar(content: Text('Erreur: ${ErrorHelper.cleanErrorMessage(e.toString())}'), backgroundColor: Colors.red),
           );
         }
       }
