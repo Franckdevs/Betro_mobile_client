@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import '../core/utils/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
@@ -12,10 +12,10 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final result = await prefs.setString(_tokenKey, token);
-      print('💾 Token enregistré avec succès: ${result ? 'oui' : 'non'}');
+      logDebug('💾 Token enregistré avec succès: ${result ? 'oui' : 'non'}');
       return result;
     } catch (e) {
-      print('❌ Erreur lors de l\'enregistrement du token: $e');
+      logDebug('❌ Erreur lors de l\'enregistrement du token: $e');
       return false;
     }
   }
@@ -25,10 +25,10 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(_tokenKey);
-      debugPrint('🔑 Token récupéré: ${token != null ? 'existant' : 'null'}');
+      logDebug('🔑 Token récupéré: ${token != null ? 'existant' : 'null'}');
       return token;
     } catch (e) {
-      debugPrint('❌ Erreur lors de la récupération du token: $e');
+      logDebug('❌ Erreur lors de la récupération du token: $e');
       return null;
     }
   }
@@ -38,10 +38,10 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final result = await prefs.remove(_tokenKey);
-      print('🗑️ Token supprimé avec succès');
+      logDebug('🗑️ Token supprimé avec succès');
       return result;
     } catch (e) {
-      print('❌ Erreur lors de la suppression du token: $e');
+      logDebug('❌ Erreur lors de la suppression du token: $e');
       return false;
     }
   }
@@ -51,10 +51,10 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final result = await prefs.setBool(_isRegisteredKey, status);
-      print('💾 Statut d\'inscription enregistré: $status');
+      logDebug('💾 Statut d\'inscription enregistré: $status');
       return result;
     } catch (e) {
-      print('❌ Erreur lors de l\'enregistrement du statut d\'inscription: $e');
+      logDebug('❌ Erreur lors de l\'enregistrement du statut d\'inscription: $e');
       return false;
     }
   }
@@ -63,10 +63,10 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final isRegistered = prefs.getBool(_isRegisteredKey) ?? false;
-      print('🔍 Statut d\'inscription récupéré: $isRegistered');
+      logDebug('🔍 Statut d\'inscription récupéré: $isRegistered');
       return isRegistered;
     } catch (e) {
-      print('❌ Erreur lors de la récupération du statut d\'inscription: $e');
+      logDebug('❌ Erreur lors de la récupération du statut d\'inscription: $e');
       return false;
     }
   }
@@ -78,13 +78,13 @@ class StorageService {
       final String? userData = prefs.getString(_userDataKey);
 
       if (userData != null) {
-        print('📋 Données utilisateur récupérées');
+        logDebug('📋 Données utilisateur récupérées');
         return Map<String, dynamic>.from(json.decode(userData));
       }
-      print('ℹ️ Aucune donnée utilisateur trouvée');
+      logDebug('ℹ️ Aucune donnée utilisateur trouvée');
       return null;
     } catch (e) {
-      print('❌ Erreur lors de la récupération des données utilisateur: $e');
+      logDebug('❌ Erreur lors de la récupération des données utilisateur: $e');
       return null;
     }
   }
@@ -94,10 +94,10 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final result = await prefs.setString(_userDataKey, json.encode(userData));
-      print('💾 Données utilisateur enregistrées avec succès');
+      logDebug('💾 Données utilisateur enregistrées avec succès');
       return result;
     } catch (e) {
-      print('❌ Erreur lors de l\'enregistrement des données utilisateur: $e');
+      logDebug('❌ Erreur lors de l\'enregistrement des données utilisateur: $e');
       return false;
     }
   }
@@ -108,10 +108,10 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_tokenKey);
       await prefs.remove(_userDataKey);
-      print('🗑️ Toutes les données utilisateur ont été supprimées');
+      logDebug('🗑️ Toutes les données utilisateur ont été supprimées');
       return true;
     } catch (e) {
-      print('❌ Erreur lors de la suppression des données utilisateur: $e');
+      logDebug('❌ Erreur lors de la suppression des données utilisateur: $e');
       return false;
     }
   }

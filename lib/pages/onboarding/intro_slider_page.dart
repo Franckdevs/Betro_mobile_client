@@ -164,12 +164,12 @@ class _IntroState extends State<Intro> {
                               end: Alignment.bottomRight,
                               colors: [
                                 primaryColor,
-                                primaryColor.withOpacity(0.7),
+                                primaryColor.withValues(alpha: 0.7),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: primaryColor.withOpacity(0.5),
+                                color: primaryColor.withValues(alpha: 0.5),
                                 blurRadius: 10,
                                 spreadRadius: 2,
                                 offset: const Offset(0, 4),
@@ -222,10 +222,13 @@ class _IntroState extends State<Intro> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
-                  Image.asset(
-                    'assets/images/logo.png',
-                    width: 120,
-                    height: 120,
+                  ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -248,7 +251,7 @@ class _IntroState extends State<Intro> {
               left: 16,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(

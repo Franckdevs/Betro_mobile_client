@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../models/gare_model.dart';
 import '../../models/itineraire_model.dart';
 import '../../services/api_service.dart';
+import '../../core/widgets/shimmer_skeleton.dart';
+import '../../core/utils/logger.dart';
 
 class DetailGarePage extends StatefulWidget {
   final int gareId;
 
-  const DetailGarePage({Key? key, required this.gareId}) : super(key: key);
+  const DetailGarePage({super.key, required this.gareId});
 
   @override
-  _DetailGarePageState createState() => _DetailGarePageState();
+  State<DetailGarePage> createState() => _DetailGarePageState();
 }
 
 class _DetailGarePageState extends State<DetailGarePage> {
@@ -43,10 +44,17 @@ class _DetailGarePageState extends State<DetailGarePage> {
         future: _gareData,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
-                strokeWidth: 3,
+            return AppShimmer(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Container(height: 120, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12))),
+                  const SizedBox(height: 12),
+                  ...List.generate(5, (_) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Container(height: 60, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10))),
+                  )),
+                ],
               ),
             );
           } else if (snapshot.hasError) {
@@ -57,8 +65,8 @@ class _DetailGarePageState extends State<DetailGarePage> {
           final itineraires = snapshot.data!.itineraires;
 
           // Debug: Afficher les informations de la gare
-          print('Ville de la gare: ${gare.ville}');
-          print('Données complètes de la gare: $gare');
+          logDebug('Ville de la gare: ${gare.ville}');
+          logDebug('Données complètes de la gare: $gare');
 
           return CustomScrollView(
             slivers: [
@@ -81,7 +89,7 @@ class _DetailGarePageState extends State<DetailGarePage> {
                                 ),
                               ),
                             ),
-                            if (gare.ville.isNotEmpty)
+                            if (gare.ville?.nomVille.isNotEmpty ?? false)
                               Container(
                                 margin: const EdgeInsets.only(left: 8),
                                 padding: const EdgeInsets.symmetric(
@@ -93,14 +101,14 @@ class _DetailGarePageState extends State<DetailGarePage> {
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
+                                      color: Colors.black.withValues(alpha: 0.1),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
                                 child: Text(
-                                  gare.ville.toUpperCase(),
+                                  gare.ville!.nomVille.toUpperCase(),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -112,29 +120,29 @@ class _DetailGarePageState extends State<DetailGarePage> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        _buildInfoRow(Icons.location_on, gare.adresseGare),
-                        if (gare.telephoneGare.isNotEmpty)
-                          _buildInfoRow(Icons.phone, gare.telephoneGare),
-                        if (gare.email.isNotEmpty)
-                          _buildInfoRow(Icons.email, gare.email),
-                        if (gare.siteWeb.isNotEmpty)
+                        _buildInfoRow(Icons.location_on, gare.adresseGare ?? ''),
+                        if (gare.displayTelephone.isNotEmpty)
+                          _buildInfoRow(Icons.phone, gare.displayTelephone),
+                        if (gare.email?.isNotEmpty ?? false)
+                          _buildInfoRow(Icons.email, gare.email ?? ''),
+                        if (gare.siteWeb?.isNotEmpty ?? false)
                           GestureDetector(
                             onTap: () => _launchURL(
-                              gare.siteWeb.startsWith('http')
-                                  ? gare.siteWeb
-                                  : 'https://${gare.siteWeb}',
+                              (gare.siteWeb ?? '').startsWith('http')
+                                  ? gare.siteWeb!
+                                  : 'https://${gare.siteWeb!}',
                             ),
                             child: _buildInfoRow(
                               Icons.language,
-                              gare.siteWeb,
+                              gare.siteWeb!,
                               textColor: Colors.blue,
                             ),
                           ),
                         _buildInfoRow(
                           Icons.access_time,
-                          '${gare.heureOuverture} - ${gare.heureFermeture} (${gare.nomJourOuverture} au ${gare.nomJourFermeture})',
+                          '${gare.heureOuvertureFormatee} – ${gare.heureFermetureFormatee} (${gare.nomJourOuverture} au ${gare.nomJourFermeture})',
                         ),
-                        if (gare.description.isNotEmpty) ...[
+                        if (gare.description?.isNotEmpty ?? false) ...[
                           const SizedBox(height: 8),
                           Text(
                             'Description:',
@@ -144,7 +152,7 @@ class _DetailGarePageState extends State<DetailGarePage> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(gare.description),
+                          Text(gare.description ?? ''),
                         ],
                       ],
                     ),
@@ -223,7 +231,7 @@ class _DetailGarePageState extends State<DetailGarePage> {
                       style: TextStyle(color: Colors.grey[700]),
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),

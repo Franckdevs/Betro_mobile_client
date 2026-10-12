@@ -9,6 +9,8 @@ class CustomTextField extends StatefulWidget {
   final String? Function(String?)? validator;
   final List<TextInputFormatter>? inputFormatters;
   final bool isPassword;
+  final TextInputAction? textInputAction;
+  final FocusNode? focusNode;
 
   const CustomTextField({
     super.key,
@@ -19,6 +21,8 @@ class CustomTextField extends StatefulWidget {
     this.validator,
     this.inputFormatters,
     this.isPassword = false,
+    this.textInputAction,
+    this.focusNode,
   });
 
   @override
@@ -44,6 +48,8 @@ class _CustomTextFieldState extends State<CustomTextField> {
         keyboardType: widget.type,
         inputFormatters: widget.inputFormatters,
         validator: widget.validator,
+        textInputAction: widget.textInputAction,
+        focusNode: widget.focusNode,
         style: const TextStyle(color: Colors.black),
         decoration: InputDecoration(
           prefixIcon: Icon(widget.icon, color: Colors.grey[600]),
