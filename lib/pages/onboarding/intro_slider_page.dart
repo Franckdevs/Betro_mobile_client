@@ -20,8 +20,8 @@ class _IntroState extends State<Intro> {
     },
     {
       'image': 'assets/images/reserve2.png',
-      'title': 'RESERVE EN UN CLIC',
-      'description': 'Trouvez et réservez votre trajet en un instant, où que vous soyez',
+      'title': 'CHOISISSEZ VOTRE PLACE',
+      'description': 'Comparez les compagnies, choisissez votre siège et payez par mobile money',
     },
     {
       'image': 'assets/images/reserve3.png',
@@ -29,7 +29,7 @@ class _IntroState extends State<Intro> {
       'description': 'Des trajets vérifiés et des conducteurs de confiance',
     },
     {
-      'image': 'assets/images/reserve4.png',
+      'image': 'assets/images/reserve4_bus_betro.jpg',
       'title': '',
       'description': '',
     },
@@ -70,6 +70,11 @@ class _IntroState extends State<Intro> {
                   image: DecorationImage(
                     image: AssetImage(pages[index]['image']!),
                     fit: BoxFit.cover,
+                    // Dernière page : sur un écran plus haut ou plus large, on
+                    // rogne le ciel plutôt que le bus (bas de l'image).
+                    alignment: index == pages.length - 1
+                        ? Alignment.bottomCenter
+                        : Alignment.center,
                   ),
                 ),
               );
@@ -284,5 +289,7 @@ class _IntroState extends State<Intro> {
     _pageController.dispose();
     super.dispose();
   }
+
 }
+
 
