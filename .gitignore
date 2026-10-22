@@ -49,3 +49,6 @@ android/key.properties
 android/app/*.jks
 android/app/*.keystore
 .widget_preview/
+
+# Identifiants de test Google Play (confidentiel)
+GOOGLE_PLAY_ACCES_TEST.md

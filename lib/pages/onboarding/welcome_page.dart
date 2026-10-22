@@ -109,13 +109,9 @@ class Welcome extends StatelessWidget {
                   children: const [
                     FaIcon(FontAwesomeIcons.facebook, color: Colors.white, size: 30),
                     SizedBox(width: 25),
-                    FaIcon(FontAwesomeIcons.xTwitter, color: Colors.white, size: 30),
-                    SizedBox(width: 25),
                     FaIcon(FontAwesomeIcons.instagram, color: Colors.white, size: 30),
                     SizedBox(width: 25),
                     FaIcon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 30),
-                    SizedBox(width: 25),
-                    FaIcon(FontAwesomeIcons.youtube, color: Colors.white, size: 30),
                   ],
                 ),
               ),
