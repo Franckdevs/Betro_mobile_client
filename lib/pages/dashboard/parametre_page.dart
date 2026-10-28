@@ -25,6 +25,7 @@ class _ParametrePageState extends State<ParametrePage> {
   final LocationSharingService _locationSharing = LocationSharingService();
   Map<String, dynamic>? _userData;
   List<Map<String, dynamic>> _trackHistory = [];
+  bool _afficherBoutonSuppressionCompte = false;
 
   static const _amber = AppColors.primaire;
   static const _darkBlue = AppColors.secondaire;
@@ -35,6 +36,19 @@ class _ParametrePageState extends State<ParametrePage> {
     super.initState();
     _loadUserData();
     _loadTrackHistory();
+    _chargerVisibiliteBoutonSuppression();
+  }
+
+  Future<void> _chargerVisibiliteBoutonSuppression() async {
+    final afficher = await ApiService().afficherBoutonSuppressionCompte();
+    if (mounted) setState(() => _afficherBoutonSuppressionCompte = afficher);
+  }
+
+  Future<void> _ouvrirSuppressionCompte() async {
+    final uri = Uri.parse('https://betro.ci/suppression-compte');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -365,6 +379,11 @@ class _ParametrePageState extends State<ParametrePage> {
                       const SizedBox(height: 10),
                       _buildSupportCard(),
                       const SizedBox(height: 20),
+                      // Suppression de compte (visibilité pilotée par l'API)
+                      if (_afficherBoutonSuppressionCompte) ...[
+                        _buildSuppressionCompteButton(),
+                        const SizedBox(height: 12),
+                      ],
                       // Logout button
                       _buildLogoutButton(),
                       const SizedBox(height: 32),
@@ -1983,6 +2002,51 @@ class _ParametrePageState extends State<ParametrePage> {
         ),
         const SizedBox(height: 8),
       ],
+    );
+  }
+
+  // ── Suppression de compte ─────────────────────────────────────────────────
+  Widget _buildSuppressionCompteButton() {
+    return InkWell(
+      onTap: _ouvrirSuppressionCompte,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_forever_rounded,
+                  color: Colors.red, size: 18),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Supprimer mon compte',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Colors.red,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
