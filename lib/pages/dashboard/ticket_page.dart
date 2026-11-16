@@ -608,14 +608,13 @@ Future<void> _startNavigation({
                       }),
                       _infoRow(Icons.person_outline_rounded, 'Nom',
                           '${extraChauffeur?.nom ?? widget.reservation['voyage']['chauffeur']['nom'] ?? ''} ${extraChauffeur?.prenom ?? widget.reservation['voyage']['chauffeur']['prenom'] ?? ''}'),
-                      _phoneRow('Téléphone',
-                          extraChauffeur?.telephone ?? widget.reservation['voyage']['chauffeur']['telephone'] ?? ''),
-                      _infoRow(Icons.badge_rounded, 'Permis',
-                          extraChauffeur?.numeroPermis ?? widget.reservation['voyage']['chauffeur']['numeros_permis'] ?? 'N/A'),
-                      if ((extraChauffeur?.dateNaissance ?? '').isNotEmpty)
-                        _infoRow(Icons.cake_rounded, 'Naissance', _formatDate(extraChauffeur!.dateNaissance)),
-                      if ((extraChauffeur?.adresse ?? '').isNotEmpty)
-                        _infoRow(Icons.location_on_rounded, 'Adresse', extraChauffeur!.adresse ?? ''),
+                      // Le serveur n'envoie plus le téléphone du chauffeur : la ligne
+                      // ne s'affiche que s'il est encore présent.
+                      if ((extraChauffeur?.telephone ?? widget.reservation['voyage']['chauffeur']['telephone'] ?? '').toString().trim().isNotEmpty)
+                        _phoneRow('Téléphone',
+                            (extraChauffeur?.telephone ?? widget.reservation['voyage']['chauffeur']['telephone'] ?? '').toString()),
+                      if (extraChauffeur?.permisVerifie == true)
+                        _infoRow(Icons.verified_rounded, 'Permis', 'Enregistré auprès de BETRO'),
                       if (chauffeurInfractions.isNotEmpty)
                         _infractionBadge(chauffeurInfractions),
                     ]),

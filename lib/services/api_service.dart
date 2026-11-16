@@ -101,6 +101,8 @@ class ApiService {
       final headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        // Infractions en liste (voir getReservations). Ignoré par les autres endpoints.
+        'X-Betro-Infractions': 'liste',
       };
       _logReq(method, url);
       final response = await http.get(url, headers: headers);
@@ -309,6 +311,9 @@ class ApiService {
       final response = await http.get(url, headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        // Demande les infractions sous forme de liste (les anciennes versions
+        // de l'app, qui ne l'envoient pas, continuent de recevoir l'ancien format).
+        'X-Betro-Infractions': 'liste',
       });
       _logRes(method, url, response.statusCode, response.body);
 

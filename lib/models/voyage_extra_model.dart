@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'gare1_model.dart';
+import '../core/utils/parsing.dart';
 
 int _parseInt(dynamic v) {
   if (v == null) return 0;
@@ -214,7 +215,7 @@ class Bus {
       status: json['status']?.toString() ?? '',
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
-      infractions: json['infractions'] as String?,
+      infractions: infractionsEnTexte(json['infractions']),
     );
   }
 
@@ -274,6 +275,8 @@ class Chauffeur {
   final String telephone;
   final String? adresse;
   final String numeroPermis;
+  /// Vrai si BETRO a un permis enregistré pour ce chauffeur (le numéro n'est plus envoyé).
+  final bool permisVerifie;
   final String dateNaissance;
   final String status;
   final String photo;
@@ -290,6 +293,7 @@ class Chauffeur {
     required this.telephone,
     this.adresse,
     required this.numeroPermis,
+    this.permisVerifie = false,
     required this.dateNaissance,
     required this.status,
     required this.photo,
@@ -308,12 +312,13 @@ class Chauffeur {
       telephone: json['telephone'] as String? ?? '',
       adresse: json['adresse'] as String?,
       numeroPermis: json['numeros_permis'] as String? ?? '',
+      permisVerifie: json['permis_verifie'] == true || json['permis_verifie'] == 1 || json['permis_verifie'] == '1',
       dateNaissance: json['date_naissance'] as String? ?? '',
       status: json['status']?.toString() ?? '',
       photo: json['photo'] as String? ?? '',
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
-      infractions: json['infractions'] as String?,
+      infractions: infractionsEnTexte(json['infractions']),
     );
   }
 
@@ -346,6 +351,7 @@ class Chauffeur {
       'telephone': telephone,
       'adresse': adresse,
       'numeros_permis': numeroPermis,
+      'permis_verifie': permisVerifie,
       'date_naissance': dateNaissance,
       'status': status,
       'photo': photo,
@@ -410,7 +416,7 @@ class Compagnie {
       status: json['status']?.toString() ?? '',
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
-      infractions: json['infractions'] as String?,
+      infractions: infractionsEnTexte(json['infractions']),
     );
   }
 
@@ -502,7 +508,7 @@ class Agent {
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
       photo: json['photo'] as String? ?? '',
-      infractions: json['infractions'] as String?,
+      infractions: infractionsEnTexte(json['infractions']),
     );
   }
 

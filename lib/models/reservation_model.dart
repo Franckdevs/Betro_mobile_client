@@ -1,3 +1,4 @@
+import '../core/utils/parsing.dart';
 // ignore: avoid_classes_with_only_static_members
 List<String> _parseBusPhotos(dynamic raw) {
   if (raw == null) return [];
@@ -155,9 +156,9 @@ class Reservation {
       chauffeurNumerosPermis: chauffeur?['numeros_permis']?.toString(),
       chauffeurDateNaissance: chauffeur?['date_naissance']?.toString(),
       chauffeurStatus: chauffeur?['status']?.toString(),
-      chauffeurInfractions: chauffeur?['infractions']?.toString(),
-      busInfractions: bus?['infractions']?.toString(),
-      companyInfractions: voyage?['compagnie']?['infractions']?.toString(),
+      chauffeurInfractions: infractionsEnTexte(chauffeur?['infractions']),
+      busInfractions: infractionsEnTexte(bus?['infractions']),
+      companyInfractions: infractionsEnTexte(voyage?['compagnie']?['infractions']),
       voyageId: _iOpt(voyage?['id']),
       dureeVoyage: voyage?['duree_voyage']?.toString(),
     );
