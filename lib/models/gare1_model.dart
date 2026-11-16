@@ -1,3 +1,4 @@
+import '../core/utils/parsing.dart';
 int _gareParseInt(dynamic v) {
   if (v == null) return 0;
   if (v is int) return v;
@@ -126,7 +127,7 @@ class Gare {
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
       ville: json['ville'] != null ? Ville.fromJson(json['ville'] as Map<String, dynamic>) : null,
-      infractions: json['infractions'] as String?,
+      infractions: infractionsEnTexte(json['infractions']),
       jourOuvert: json['jour_ouvert'] is Map
           ? Map<String, dynamic>.from(json['jour_ouvert'] as Map)
           : null,

@@ -101,6 +101,8 @@ class ApiService {
       final headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        // Infractions en liste (voir getReservations). Ignoré par les autres endpoints.
+        'X-Betro-Infractions': 'liste',
       };
       _logReq(method, url);
       final response = await http.get(url, headers: headers);
@@ -309,6 +311,9 @@ class ApiService {
       final response = await http.get(url, headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        // Demande les infractions sous forme de liste (les anciennes versions
+        // de l'app, qui ne l'envoient pas, continuent de recevoir l'ancien format).
+        'X-Betro-Infractions': 'liste',
       });
       _logRes(method, url, response.statusCode, response.body);
 
@@ -356,6 +361,29 @@ class ApiService {
       _logErr(method, url, e);
     }
     return {'success': false};
+  }
+
+  // ── Afficher/masquer le bouton "Supprimer mon compte" ────────────────────
+
+  Future<bool> afficherBoutonSuppressionCompte() async {
+    final url = Uri.parse('$baseUrl/parametre-app-mobile/bouton-suppression-compte');
+    const method = 'GET';
+    try {
+      _logReq(method, url);
+      final response = await http.get(url, headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }).timeout(const Duration(seconds: 8));
+      _logRes(method, url, response.statusCode, response.body);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['afficher_bouton_suppression_compte'] == true;
+      }
+    } catch (e) {
+      _logErr(method, url, e);
+    }
+    return false;
   }
 
   // ── FAQ ───────────────────────────────────────────────────────────────────
